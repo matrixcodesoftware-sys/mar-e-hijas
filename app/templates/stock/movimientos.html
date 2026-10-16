@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import icon, badge, paginacion, resultado_info, buscar_primero, vacio %}
+{% block titulo %}Movimientos de stock{% endblock %}
+{% block contenido %}
+<div class="miga"><a href="{{ url_for('stock.index') }}">Stock</a> / Movimientos</div>
+<div class="encabezado">
+    <div><h1>Movimientos de stock</h1><div class="encabezado__sub">Entradas, salidas por venta, ajustes y anulaciones</div></div>
+</div>
+<form class="filtros" method="get">
+    <input type="hidden" name="buscar" value="1">
+    <div class="filtros__grid">
+        <div class="campo"><label>Material</label><select class="input" name="material_id"><option value="">Todos</option>
+            {% for id, n in materiales %}<option value="{{ id }}" {{ 'selected' if request.args.material_id == id|string }}>{{ n }}</option>{% endfor %}</select></div>
+        <div class="campo"><label>Tipo</label><select class="input" name="tipo"><option value="">Todos</option>
+            {% for k, t in opciones('tipo_mov_stock') %}<option value="{{ k }}" {{ 'selected' if request.args.tipo == k }}>{{ t }}</option>{% endfor %}</select></div>
+        <div class="campo"><label>Desde</label><input class="input" type="date" name="desde" value="{{ request.args.desde or '' }}"></div>
+        <div class="campo"><label>Hasta</label><input class="input" type="date" name="hasta" value="{{ request.args.hasta or '' }}"></div>
+        <div class="campo"><label>Remito</label><input class="input" name="remito" value="{{ request.args.remito or '' }}"></div>
+        <div class="filtros__acciones"><button class="btn btn--oscuro">{{ icon('search') }} Buscar</button></div>
+    </div>
+</form>
+<div class="card">
+    {% if pagina is none %}{{ buscar_primero() }}
+    {% elif not pagina.items %}{{ vacio() }}
+    {% else %}
+    {{ resultado_info(pagina, "movimientos") }}
+    <div class="tabla-scroll"><table class="tabla tabla-responsive">
+        <thead><tr><th>Fecha</th><th>Material</th><th>Tipo</th><th class="right">Cantidad</th><th class="right">Stock ant. → result.</th><th>Origen / destino</th><th>Usuario</th></tr></thead>
+        <tbody>
+        {% for m in pagina.items %}
+        <tr>
+            <td data-etq="Fecha">{{ m.fecha|fecha_hora }}</td>
+            <td data-etq="Material">{{ m.material }}</td>
+            <td data-etq="Tipo">{{ badge(m.tipo, 'tipo_mov_stock') }}</td>
+            <td data-etq="Cantidad" class="right num fw-600 {{ 'text-verde' if m.cantidad > 0 else 'text-rojo' }}">{{ '+' if m.cantidad > 0 }}{{ m.cantidad|cantidad }} {{ m.unidad_stock }}
+                {% if m.unidad_mov != m.unidad_stock %}<br><small class="muted">({{ m.cantidad_unidad|cantidad }} {{ m.unidad_mov }} × {{ m.factor_conversion|cantidad }})</small>{% endif %}</td>
+            <td data-etq="Stock" class="right num">{{ m.stock_anterior|cantidad }} → {{ m.stock_resultante|cantidad }}</td>
+            <td data-etq="Origen">
+                {% if m.proveedor %}{{ m.proveedor }}{% endif %}
+                {% if m.remito_numero %}<br><small class="muted">Remito {{ m.remito_numero }}</small>{% endif %}
+                {% if m.patente or m.vehiculo_descripcion %}<br><small class="muted">{{ m.patente or m.vehiculo_descripcion }}</small>{% endif %}
+                {% if m.venta_id %}<a href="{{ url_for('ventas.ver', venta_id=m.venta_id) }}">{{ m.venta_id|nro('V') }}</a> · {{ m.cliente }}{% endif %}
+                {% if m.costo_total %}<br><small class="muted">Costo {{ m.costo_total|moneda }}</small>{% endif %}
+                {% if m.observaciones and not m.venta_id %}<br><small class="muted">{{ m.observaciones }}</small>{% endif %}
+            </td>
+            <td data-etq="Usuario">{{ m.usuario }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table></div>
+    {{ paginacion(pagina) }}
+    {% endif %}
+</div>
+{% endblock %}

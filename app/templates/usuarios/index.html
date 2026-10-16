@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import icon, badge_activo, paginacion %}
+{% block titulo %}Usuarios{% endblock %}
+{% block contenido %}
+<div class="encabezado">
+    <div><h1>Usuarios</h1><div class="encabezado__sub">Accesos al sistema y roles</div></div>
+    <div class="encabezado__acciones">
+        <a class="btn" href="{{ url_for('usuarios.roles') }}">{{ icon('shield') }} Roles y permisos</a>
+        <a class="btn btn--primario" href="{{ url_for('usuarios.nuevo') }}">{{ icon('plus') }} Nuevo usuario</a>
+    </div>
+</div>
+<form class="filtros" method="get">
+    <div class="filtros__grid">
+        <div class="campo"><label>Buscar</label><input class="input" name="q" value="{{ request.args.q or '' }}"></div>
+        <div class="campo"><label>Rol</label><select class="input" name="rol_id" data-auto-submit><option value="">Todos</option>
+            {% for r in roles %}<option value="{{ r.id }}" {{ 'selected' if request.args.rol_id == r.id|string }}>{{ r.nombre }}</option>{% endfor %}</select></div>
+        <div class="campo"><label>Estado</label><select class="input" name="activo" data-auto-submit><option value="">Todos</option><option value="1" {{ 'selected' if request.args.activo == '1' }}>Activos</option><option value="0" {{ 'selected' if request.args.activo == '0' }}>Inactivos</option></select></div>
+        <div class="filtros__acciones"><button class="btn btn--oscuro">{{ icon('search') }} Filtrar</button></div>
+    </div>
+</form>
+<div class="card">
+    <div class="tabla-scroll"><table class="tabla tabla-responsive">
+        <thead><tr><th>Usuario</th><th>Nombre</th><th>Rol</th><th>Email</th><th>Último acceso</th><th>Estado</th><th></th></tr></thead>
+        <tbody>{% for u in pagina.items %}
+        <tr>
+            <td data-etq="Usuario" class="fw-600">@{{ u.username }}</td>
+            <td data-etq="Nombre">{{ u.nombre }} {{ u.apellido }}</td>
+            <td data-etq="Rol"><span class="badge badge--{{ {'duenio':'ambar','admin':'azul','vendedor':'verde','chofer':'celeste'}.get(u.rol_codigo, 'gris') }}">{{ u.rol_nombre }}</span></td>
+            <td data-etq="Email">{{ u.email or '—' }}</td>
+            <td data-etq="Último acceso">{{ u.ultimo_acceso|fecha_hora or 'Nunca' }}</td>
+            <td data-etq="Estado">{{ badge_activo(u.activo) }}</td>
+            <td class="acciones"><a class="btn btn--sm btn--fantasma" href="{{ url_for('usuarios.editar', usuario_id=u.id) }}">{{ icon('edit') }}</a></td>
+        </tr>{% endfor %}</tbody>
+    </table></div>
+    {{ paginacion(pagina) }}
+</div>
+{% endblock %}

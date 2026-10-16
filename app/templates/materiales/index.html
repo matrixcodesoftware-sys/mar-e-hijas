@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import icon, badge_activo, paginacion, resultado_info, buscar_primero, vacio %}
+{% block titulo %}Materiales{% endblock %}
+{% block contenido %}
+<div class="encabezado">
+    <div><h1>Materiales y áridos</h1><div class="encabezado__sub">Precios, unidades de venta y stock</div></div>
+    <div class="encabezado__acciones">
+        {% if current_user.puede('materiales.gestionar') %}<a class="btn btn--primario" href="{{ url_for('materiales.nuevo') }}">{{ icon('plus') }} Nuevo material</a>{% endif %}
+    </div>
+</div>
+
+<form class="filtros" method="get">
+    <input type="hidden" name="buscar" value="1">
+    <div class="filtros__grid">
+        <div class="campo"><label>Buscar</label><input class="input" name="q" value="{{ request.args.q or '' }}" placeholder="Nombre o código"></div>
+        <div class="campo"><label>Tipo</label>
+            <select class="input" name="categoria_id"><option value="">Todos</option>
+                {% for id, n in categorias %}<option value="{{ id }}" {{ 'selected' if request.args.categoria_id == id|string }}>{{ n }}</option>{% endfor %}
+            </select></div>
+        <div class="campo"><label>Proveedor</label>
+            <select class="input" name="proveedor_id"><option value="">Todos</option>
+                {% for id, n in proveedores %}<option value="{{ id }}" {{ 'selected' if request.args.proveedor_id == id|string }}>{{ n }}</option>{% endfor %}
+            </select></div>
+        <div class="campo"><label>Estado</label>
+            <select class="input" name="activo">
+                <option value="1" {{ 'selected' if request.args.get('activo', '1') == '1' }}>Activos</option>
+                <option value="0" {{ 'selected' if request.args.activo == '0' }}>Inactivos</option>
+                <option value="" {{ 'selected' if request.args.activo == '' and request.args.buscar }}>Todos</option>
+            </select></div>
+        <div class="filtros__acciones"><button class="btn btn--oscuro">{{ icon('search') }} Buscar</button></div>
+    </div>
+    <div class="chips">
+        <a class="chip {{ 'activo' if request.args.rapido == 'todos' }}" href="{{ url_for('materiales.index', rapido='todos') }}">Ver todos</a>
+        <a class="chip {{ 'activo' if request.args.rapido == 'bajo' }}" href="{{ url_for('materiales.index', rapido='bajo') }}">Bajo stock mínimo</a>
+    </div>
+</form>
+
+<div class="card">
+    {% if pagina is none %}
+        {{ buscar_primero() }}
+    {% elif not pagina.items %}
+        {{ vacio() }}
+    {% else %}
+        {{ resultado_info(pagina, "materiales") }}
+        <div class="tabla-scroll"><table class="tabla tabla-responsive">
+            <thead><tr><th>Código</th><th>Material</th><th>Tipo</th><th>Unidad</th>{% if current_user.puede('materiales.gestionar') %}<th class="right">Compra</th>{% endif %}<th class="right">Venta</th><th class="right">Stock</th><th>Estado</th><th></th></tr></thead>
+            <tbody>
+            {% for m in pagina.items %}
+            <tr class="{{ 'fila-alerta' if m.stock_actual <= m.stock_minimo and m.activo }}">
+                <td data-etq="Código" class="num">{{ m.codigo }}</td>
+                <td data-etq="Material"><a href="{{ url_for('materiales.ver', material_id=m.id) }}" class="fw-600">{{ m.nombre }}</a>{% if m.proveedor %}<br><small class="muted">{{ m.proveedor }}</small>{% endif %}</td>
+                <td data-etq="Tipo">{{ m.categoria }}</td>
+                <td data-etq="Unidad">{{ m.unidad_nombre }}</td>
+                {% if current_user.puede('materiales.gestionar') %}<td data-etq="Compra" class="right num">{{ m.precio_compra|moneda }}</td>{% endif %}
+                <td data-etq="Venta" class="right num fw-600">{{ m.precio_venta|moneda }}</td>
+                <td data-etq="Stock" class="right num {{ 'text-rojo fw-600' if m.stock_actual <= m.stock_minimo }}">{{ m.stock_actual|cantidad }} {{ m.unidad_abrev }}<br><small class="muted">mín. {{ m.stock_minimo|cantidad }}</small></td>
+                <td data-etq="Estado">{{ badge_activo(m.activo) }}</td>
+                <td class="acciones">
+                    <a class="btn btn--sm btn--fantasma" href="{{ url_for('materiales.ver', material_id=m.id) }}" title="Ver">{{ icon('eye') }}</a>
+                    {% if current_user.puede('materiales.gestionar') %}<a class="btn btn--sm btn--fantasma" href="{{ url_for('materiales.editar', material_id=m.id) }}" title="Editar">{{ icon('edit') }}</a>{% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table></div>
+        {{ paginacion(pagina) }}
+    {% endif %}
+</div>
+{% endblock %}

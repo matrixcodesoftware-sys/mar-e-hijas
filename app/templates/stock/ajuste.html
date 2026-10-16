@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import icon, campo, select, csrf %}
+{% block titulo %}Ajuste de stock{% endblock %}
+{% block contenido %}
+<div class="miga"><a href="{{ url_for('stock.index') }}">Stock</a> / Ajuste</div>
+<div class="encabezado"><div><h1>Ajuste de stock</h1><div class="encabezado__sub">Conteo físico de la pila o corrección puntual. Queda registrado con motivo y usuario.</div></div></div>
+<form method="post" class="card" style="max-width:760px" novalidate>
+    {{ csrf() }}
+    <div class="card__cuerpo form-grid">
+        {{ select("material_id", "Material", materiales, d.material_id, errores=errores, requerido=True, col=12) }}
+        <div class="campo col-12"><label>Tipo de ajuste</label>
+            <div class="segmentado">
+                <input type="radio" id="m_conteo" name="modo" value="conteo" {{ 'checked' if d.modo in (None, '', 'conteo') }}><label for="m_conteo">Conteo físico (stock real)</label>
+                <input type="radio" id="m_sumar" name="modo" value="sumar" {{ 'checked' if d.modo == 'sumar' }}><label for="m_sumar">Sumar</label>
+                <input type="radio" id="m_restar" name="modo" value="restar" {{ 'checked' if d.modo == 'restar' }}><label for="m_restar">Restar</label>
+            </div></div>
+        {{ campo("valor", "Cantidad", d.valor, tipo="number", errores=errores, requerido=True, col=6, attrs='step="0.001" min="0"', ayuda="En conteo físico: lo que hay realmente en el galpón.") }}
+        {{ select("unidad_id", "Unidad", unidades, d.unidad_id, errores=errores, requerido=True, col=6) }}
+        {{ campo("motivo", "Motivo", d.motivo, errores=errores, requerido=True, col=12, placeholder="Ej.: medición de pila con topógrafo, merma por lluvia, error de carga…", attrs='maxlength="255"') }}
+    </div>
+    <div class="card__pie form-acciones mt-0">
+        <a class="btn" href="{{ url_for('stock.index') }}">Cancelar</a>
+        <button class="btn btn--primario">{{ icon('check') }} Registrar ajuste</button>
+    </div>
+</form>
+{% endblock %}

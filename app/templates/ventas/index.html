@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import icon, badge, paginacion, resultado_info, buscar_primero, vacio %}
+{% block titulo %}Ventas{% endblock %}
+{% block contenido %}
+<div class="encabezado">
+    <div><h1>Ventas</h1><div class="encabezado__sub">Buscá por fecha, cliente, material o vendedor</div></div>
+    <div class="encabezado__acciones">{% if current_user.puede('ventas.crear') %}<a class="btn btn--primario" href="{{ url_for('ventas.nueva') }}">{{ icon('plus') }} Nueva venta</a>{% endif %}</div>
+</div>
+<form class="filtros" method="get">
+    <input type="hidden" name="buscar" value="1">
+    <div class="filtros__grid">
+        <div class="campo"><label>N.º de venta</label><input class="input" name="numero" value="{{ request.args.numero or '' }}" placeholder="V-000123"></div>
+        <div class="campo"><label>Desde</label><input class="input" type="date" name="desde" value="{{ request.args.desde or '' }}"></div>
+        <div class="campo"><label>Hasta</label><input class="input" type="date" name="hasta" value="{{ request.args.hasta or '' }}"></div>
+        <div class="campo"><label>Cliente</label><div data-selector="clientes" data-name="cliente_id" data-valor="{{ cliente_sel.id if cliente_sel else '' }}" data-texto="{{ cliente_sel.razon_social if cliente_sel else '' }}" data-placeholder="Buscar cliente…"></div></div>
+        <div class="campo"><label>Material</label><select class="input" name="material_id"><option value="">Todos</option>
+            {% for id, n in materiales %}<option value="{{ id }}" {{ 'selected' if request.args.material_id == id|string }}>{{ n }}</option>{% endfor %}</select></div>
+        <div class="campo"><label>Vendedor</label><select class="input" name="usuario_id"><option value="">Todos</option>
+            {% for u in vendedores %}<option value="{{ u.id }}" {{ 'selected' if request.args.usuario_id == u.id|string }}>{{ u.nombre }} {{ u.apellido }}</option>{% endfor %}</select></div>
+        <div class="campo"><label>Pago</label><select class="input" name="estado_pago"><option value="">Todos</option>
+            {% for k, t in opciones('estado_pago') %}<option value="{{ k }}" {{ 'selected' if request.args.estado_pago == k }}>{{ t }}</option>{% endfor %}</select></div>
+        <div class="campo"><label>Estado</label><select class="input" name="estado"><option value="">Todas</option>
+            {% for k, t in opciones('estado_venta') %}<option value="{{ k }}" {{ 'selected' if request.args.estado == k }}>{{ t }}</option>{% endfor %}</select></div>
+        <div class="filtros__acciones"><button class="btn btn--oscuro">{{ icon('search') }} Buscar</button></div>
+    </div>
+    <div class="chips">
+        {% for k, t in [('hoy','Hoy'),('semana','Esta semana'),('mes','Este mes')] %}
+        <a class="chip {{ 'activo' if request.args.rapido == k }}" href="{{ url_for('ventas.index', rapido=k) }}">{{ t }}</a>{% endfor %}
+    </div>
+</form>
+<div class="card">
+    {% if pagina is none %}{{ buscar_primero() }}
+    {% elif not pagina.items %}{{ vacio() }}
+    {% else %}
+    {% set total_pag = pagina.items|selectattr('estado', 'equalto', 'confirmada')|sum(attribute='total') %}
+    {% call resultado_info(pagina, "ventas") %}<span>Total en esta página: <strong class="num">{{ total_pag|moneda }}</strong></span>{% endcall %}
+    <div class="tabla-scroll"><table class="tabla tabla-responsive">
+        <thead><tr><th>N.º</th><th>Fecha</th><th>Cliente</th><th>Entrega</th><th>Vendedor</th><th class="right">Total</th><th>Pago</th><th></th></tr></thead>
+        <tbody>{% for v in pagina.items %}
+        <tr class="{{ 'fila-anulada' if v.estado == 'anulada' }}">
+            <td data-etq="N.º"><a class="fw-600 num" href="{{ url_for('ventas.ver', venta_id=v.id) }}">{{ v.id|nro('V') }}</a></td>
+            <td data-etq="Fecha">{{ v.fecha|fecha_hora }}</td>
+            <td data-etq="Cliente">{{ v.cliente }}</td>
+            <td data-etq="Entrega">{{ badge(v.tipo_entrega, 'tipo_entrega') }}</td>
+            <td data-etq="Vendedor">{{ v.vendedor }}</td>
+            <td data-etq="Total" class="right num fw-600">{{ v.total|moneda }}</td>
+            <td data-etq="Pago">{% if v.estado == 'anulada' %}{{ badge('anulada', 'estado_venta') }}{% else %}{{ badge(v.estado_pago, 'estado_pago') }}{% endif %}</td>
+            <td class="acciones"><a class="btn btn--sm btn--fantasma" href="{{ url_for('ventas.pdf', venta_id=v.id) }}" target="_blank" title="PDF">{{ icon('pdf') }}</a></td>
+        </tr>{% endfor %}</tbody>
+    </table></div>
+    {{ paginacion(pagina) }}
+    {% endif %}
+</div>
+{% endblock %}

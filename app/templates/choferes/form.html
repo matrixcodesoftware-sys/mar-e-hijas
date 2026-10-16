@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import icon, campo, select, csrf %}
+{% block titulo %}{{ 'Editar chofer' if editando else 'Nuevo chofer' }}{% endblock %}
+{% block contenido %}
+<div class="miga"><a href="{{ url_for('choferes.index') }}">Choferes</a> / {{ 'Editar' if editando else 'Nuevo' }}</div>
+<div class="encabezado"><h1>{{ (c.nombre ~ ' ' ~ c.apellido) if editando else 'Nuevo chofer' }}</h1></div>
+<form method="post" class="card" novalidate>
+    {{ csrf() }}
+    <div class="card__cuerpo form-grid">
+        {{ campo("nombre", "Nombre", c.nombre, errores=errores, requerido=True, col=4) }}
+        {{ campo("apellido", "Apellido", c.apellido, errores=errores, requerido=True, col=4) }}
+        {{ campo("dni", "DNI", c.dni, errores=errores, requerido=True, col=4, attrs='inputmode="numeric" maxlength="10"') }}
+        {{ campo("telefono", "Teléfono", c.telefono, errores=errores, col=4, attrs='inputmode="tel"') }}
+        {{ campo("licencia_numero", "N.º de licencia", c.licencia_numero, errores=errores, col=4) }}
+        {{ campo("licencia_categoria", "Categoría", c.licencia_categoria, errores=errores, col=2, placeholder="C, D, E…") }}
+        {{ campo("licencia_vencimiento", "Vencimiento", c.licencia_vencimiento|fecha_iso, tipo="date", errores=errores, col=2) }}
+        {{ select("usuario_id", "Usuario para la app de entregas", usuarios, c.usuario_id, errores=errores, col=6, vacio="Sin acceso", ayuda="Sólo usuarios con rol Chofer. Crealos en Usuarios.") }}
+        {{ select("estado", "Estado", opciones('estado_chofer'), c.estado, errores=errores, col=6, vacio=None) }}
+        {{ campo("observaciones", "Observaciones", c.observaciones, tipo="textarea", errores=errores, col=12) }}
+    </div>
+    <div class="card__pie form-acciones mt-0">
+        <a class="btn" href="{{ url_for('choferes.ver', chofer_id=c.id) if editando else url_for('choferes.index') }}">Cancelar</a>
+        <button class="btn btn--primario">{{ icon('check') }} Guardar</button>
+    </div>
+</form>
+{% endblock %}

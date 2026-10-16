@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block titulo %}Configuración{% endblock %}
+{% block contenido %}
+<div class="encabezado"><div><h1>Configuración</h1><div class="encabezado__sub">Parámetros del sistema: nada de esto está fijo en el código</div></div></div>
+<nav class="tabs">
+    {% for k, t in secciones.items() %}<a class="{{ 'activo' if k == actual }}" href="{{ url_for('configuracion.seccion', nombre=k) }}">{{ t }}</a>{% endfor %}
+</nav>
+{% block seccion %}{% endblock %}
+{% endblock %}

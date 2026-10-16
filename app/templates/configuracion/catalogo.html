@@ -1,0 +1,51 @@
+{% extends "configuracion/_layout.html" %}
+{% from "partials/macros.html" import icon, csrf, badge_activo %}
+{% block seccion %}
+<div class="grid grid-lateral">
+    <div class="card">
+        <div class="card__cab"><h3>{{ info.titulo }}</h3></div>
+        <div class="tabla-scroll"><table class="tabla tabla-responsive">
+            <thead><tr>{% for c, etq, tipo, extra in campos %}<th class="{{ 'right' if tipo == 'decimal' }}">{{ etq }}</th>{% endfor %}<th></th></tr></thead>
+            <tbody>{% for f in filas %}
+            <tr>
+                {% for c, etq, tipo, extra in campos %}
+                <td data-etq="{{ etq }}" class="{{ 'right num' if tipo == 'decimal' }}">
+                    {% if tipo == 'bool' %}{{ badge_activo(f[c]) }}
+                    {% elif tipo == 'decimal' %}{{ f[c]|numero(2) }}
+                    {% elif tipo == 'opcion' %}{{ f[c]|replace('_', ' ')|capitalize }}
+                    {% else %}{{ f[c] or '' }}{% endif %}
+                </td>
+                {% endfor %}
+                <td class="acciones"><a class="btn btn--sm btn--fantasma" href="{{ url_for('configuracion.seccion', nombre=tabla, editar=f.id) }}">{{ icon('edit') }}</a></td>
+            </tr>
+            {% else %}<tr><td colspan="{{ campos|length + 1 }}" class="center muted">Sin registros.</td></tr>{% endfor %}</tbody>
+        </table></div>
+        {% if tabla == 'zonas_entrega' %}<div class="card__pie text-sm muted">Flete = costo fijo + costo por km × distancia + costo por unidad × cantidad de carga + recargo del tipo de vehículo. Usá sólo los componentes que apliquen (por ejemplo, sólo costo fijo por zona).</div>{% endif %}
+        {% if tabla == 'unidades' %}<div class="card__pie text-sm muted">Las equivalencias entre unidades (ej. 1 viaje = 6 m³) se cargan en <a href="{{ url_for('configuracion.seccion', nombre='conversiones') }}">Conversiones</a>.</div>{% endif %}
+    </div>
+    <form method="post" class="card">
+        {{ csrf() }}
+        {% if registro %}<input type="hidden" name="id" value="{{ registro.id }}">{% endif %}
+        <div class="card__cab"><h3>{{ ('Editar ' if registro else 'Nueva/o ') ~ info.singular }}</h3></div>
+        <div class="card__cuerpo form-grid">
+            {% for c, etq, tipo, extra in campos %}
+            <div class="campo col-12{{ ' error' if errores.get(c) }}">
+                {% if tipo == 'bool' %}
+                <label class="check"><input type="checkbox" name="{{ c }}" value="1" {{ 'checked' if (registro[c] if registro else 1) in (1, '1', True) }}> {{ etq }}</label>
+                {% elif tipo == 'opcion' %}
+                <label>{{ etq }}</label><select class="input" name="{{ c }}">{% for o in extra %}<option value="{{ o }}" {{ 'selected' if registro and registro[c] == o }}>{{ o|replace('_', ' ')|capitalize }}</option>{% endfor %}</select>
+                {% else %}
+                <label>{{ etq }}{% if extra %} <span class="req">*</span>{% endif %}</label>
+                <input class="input {{ 'num' if tipo == 'decimal' }}" name="{{ c }}" {% if tipo == 'decimal' %}type="number" step="0.01" min="0"{% endif %} value="{{ registro[c] if registro and registro[c] is not none else '' }}" {{ 'required' if extra and tipo == 'texto' }}>
+                {% endif %}
+                {% if errores.get(c) %}<div class="campo__error">{{ errores.get(c) }}</div>{% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        <div class="card__pie form-acciones mt-0">
+            {% if registro %}<a class="btn" href="{{ url_for('configuracion.seccion', nombre=tabla) }}">Cancelar</a>{% endif %}
+            <button class="btn btn--primario">{{ icon('check') }} Guardar</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

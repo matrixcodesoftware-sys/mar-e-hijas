@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import icon, badge, csrf %}
+{% block titulo %}Venta {{ v.id|nro('V') }}{% endblock %}
+{% block contenido %}
+<div class="miga no-imprimir"><a href="{{ url_for('ventas.index') }}">Ventas</a> / {{ v.id|nro('V') }}</div>
+<div class="encabezado">
+    <div><h1>Venta {{ v.id|nro('V') }}</h1>
+        <div class="encabezado__sub">{{ v.fecha|fecha_hora }} · {{ badge(v.estado, 'estado_venta') }} {{ badge(v.estado_pago, 'estado_pago') }} {{ badge(v.tipo_entrega, 'tipo_entrega') }}</div></div>
+    <div class="encabezado__acciones no-imprimir">
+        <a class="btn" href="{{ url_for('ventas.pdf', venta_id=v.id) }}" target="_blank">{{ icon('pdf') }} Comprobante PDF</a>
+        {% if current_user.puede('ventas.crear') %}<a class="btn btn--primario" href="{{ url_for('ventas.nueva') }}">{{ icon('plus') }} Otra venta</a>{% endif %}
+        {% if v.estado == 'confirmada' and current_user.puede('ventas.anular') %}
+        <button class="btn btn--peligro" data-abrir-modal="modal-anular">{{ icon('ban') }} Anular</button>{% endif %}
+    </div>
+</div>
+{% if v.estado == 'anulada' %}
+<div class="aviso aviso--rojo mb-2">{{ icon('ban') }}<span>Venta anulada el {{ v.anulada_en|fecha_hora }}. Motivo: {{ v.motivo_anulacion }}</span></div>
+{% endif %}
+{% if nueva and v.tipo_entrega == 'envio' and entregas %}
+<div class="aviso aviso--azul mb-2">{{ icon('truck') }}<span>Se creó la entrega pendiente. {% if current_user.puede('entregas.gestionar') %}<a href="{{ url_for('entregas.ver', entrega_id=entregas[0].id) }}">Asignar chofer y camión</a>{% endif %}</span></div>
+{% endif %}
+
+<div class="grid grid-lateral">
+    <div>
+        <div class="card">
+            <div class="card__cab"><h3>Detalle</h3></div>
+            <div class="tabla-scroll"><table class="tabla tabla-responsive">
+                <thead><tr><th>Material</th><th class="right">Cantidad</th><th class="right">Precio unit.</th><th class="right">Desc.</th><th class="right">Subtotal</th></tr></thead>
+                <tbody>{% for d in detalle %}
+                <tr><td data-etq="Material" class="fw-600">{{ d.material }}{% if d.unidad != d.unidad_stock %}<br><small class="muted">= {{ d.cantidad_stock|cantidad }} {{ d.unidad_stock }} descontados del stock</small>{% endif %}</td>
+                    <td data-etq="Cantidad" class="right num">{{ d.cantidad|cantidad }} {{ d.unidad }}</td>
+                    <td data-etq="Precio" class="right num">{{ d.precio_unitario|moneda }}</td>
+                    <td data-etq="Desc." class="right num">{{ (d.descuento_pct|cantidad ~ ' %') if d.descuento_pct else '—' }}</td>
+                    <td data-etq="Subtotal" class="right num fw-600">{{ d.subtotal|moneda }}</td></tr>
+                {% endfor %}</tbody>
+            </table></div>
+            <div class="card__cuerpo">
+                <div class="totales">
+                    <div><span>Subtotal</span><span class="num">{{ v.subtotal|moneda }}</span></div>
+                    {% if v.descuento_general %}<div><span>Descuento</span><span class="num">− {{ v.descuento_general|moneda }}</span></div>{% endif %}
+                    {% if v.tipo_entrega == 'envio' %}<div><span>Flete{% if v.zona %} ({{ v.zona }}){% endif %}</span><span class="num">{{ v.costo_envio|moneda }}</span></div>{% endif %}
+                    <div class="total"><span>TOTAL</span><span class="num">{{ v.total|moneda }}</span></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card__cab"><h3>Pagos</h3></div>
+            <div class="card__cuerpo">
+                <ul class="lista-simple">
+                {% for p in pagos %}
+                    <li class="{{ 'fila-anulada' if p.estado == 'anulado' }}"><span>{{ p.metodo }}{% if p.referencia %} · ref. {{ p.referencia }}{% endif %}<br><small class="muted">{{ p.fecha|fecha_hora }} · {{ p.usuario }}</small></span><span class="num fw-600">{{ p.monto|moneda }}</span></li>
+                {% endfor %}
+                {% if v.saldo_cta_cte %}
+                    <li><span>A cuenta corriente<br><small class="muted"><a href="{{ url_for('clientes.cuenta', cliente_id=v.cliente_id) }}">Ver cuenta del cliente</a></small></span><span class="num fw-600 text-rojo">{{ v.saldo_cta_cte|moneda }}</span></li>
+                {% endif %}
+                </ul>
+            </div>
+        </div>
+
+        {% if v.tipo_entrega == 'envio' %}
+        <div class="card">
+            <div class="card__cab"><h3>Entregas</h3></div>
+            {% if entregas %}<div class="tabla-scroll"><table class="tabla tabla-responsive">
+                <thead><tr><th>N.º</th><th>Fecha</th><th>Carga</th><th>Chofer / camión</th><th>Estado</th></tr></thead>
+                <tbody>{% for e in entregas %}<tr><td data-etq="N.º"><a href="{{ url_for('entregas.ver', entrega_id=e.id) }}">{{ e.id|nro('E') }}</a></td><td data-etq="Fecha">{{ e.fecha|fecha }} {{ e.horario or '' }}</td><td data-etq="Carga">{{ e.carga }}</td><td data-etq="Chofer">{{ e.chofer or '—' }} · {{ e.patente or '—' }}</td><td data-etq="Estado">{{ badge(e.estado, 'estado_entrega') }}</td></tr>{% endfor %}</tbody>
+            </table></div>
+            {% elif v.pedido_id %}<div class="card__cuerpo muted">Las entregas se gestionan desde el <a href="{{ url_for('pedidos.ver', pedido_id=v.pedido_id) }}">pedido {{ v.pedido_id|nro('P') }}</a>.</div>
+            {% else %}<div class="card__cuerpo muted">Sin entregas programadas.</div>{% endif %}
+        </div>
+        {% endif %}
+    </div>
+
+    <div>
+        <div class="card">
+            <div class="card__cab"><h3>Cliente</h3></div>
+            <div class="card__cuerpo">
+                <div class="fw-600"><a href="{{ url_for('clientes.ver', cliente_id=v.cliente_id) }}">{{ v.cliente }}</a></div>
+                <div class="text-sm muted">{{ v.cliente_documento or '' }} {{ v.cliente_telefono or '' }}</div>
+                {% if v.direccion_entrega %}<div class="mt-1">{{ icon('pin') }} {{ v.direccion_entrega }}</div>{% endif %}
+            </div>
+        </div>
+        <div class="card">
+            <div class="card__cab"><h3>Datos de la operación</h3></div>
+            <div class="card__cuerpo"><dl class="dl">
+                <dt>Vendedor</dt><dd>{{ v.vendedor }}</dd>
+                {% if v.presupuesto_id %}<dt>Presupuesto</dt><dd><a href="{{ url_for('presupuestos.ver', presupuesto_id=v.presupuesto_id) }}">{{ v.presupuesto_id|nro('PR') }}</a></dd>{% endif %}
+                {% if v.pedido_id %}<dt>Pedido</dt><dd><a href="{{ url_for('pedidos.ver', pedido_id=v.pedido_id) }}">{{ v.pedido_id|nro('P') }}</a></dd>{% endif %}
+                {% if current_user.puede('reportes.ver') %}<dt>Costo mercadería</dt><dd>{{ v.costo_mercaderia|moneda }}</dd>
+                <dt>Ganancia estimada</dt><dd class="fw-600">{{ (v.total - v.costo_mercaderia)|moneda }}</dd>{% endif %}
+                <dt>Observaciones</dt><dd>{{ v.observaciones or '—' }}</dd>
+            </dl></div>
+        </div>
+        {% if movimientos and current_user.puede('stock.ver') %}
+        <div class="card">
+            <div class="card__cab"><h3>Movimientos de stock</h3></div>
+            <div class="card__cuerpo"><ul class="lista-simple">
+                {% for m in movimientos %}<li><span>{{ m.material }}<br><small class="muted">{{ m.tipo|etiqueta('tipo_mov_stock') }} · {{ m.fecha|fecha_hora }}</small></span><span class="num {{ 'text-verde' if m.cantidad > 0 else 'text-rojo' }}">{{ '+' if m.cantidad > 0 }}{{ m.cantidad|cantidad }} {{ m.unidad_stock }}</span></li>{% endfor %}
+            </ul></div>
+        </div>
+        {% endif %}
+        <div class="card">
+            <div class="card__cab"><h3>Facturación electrónica</h3></div>
+            <div class="card__cuerpo">
+                {% for c in comprobantes %}
+                <div class="mb-1"><strong>{{ c.tipo_desc }}</strong> PV {{ '%05d'|format(c.pv_numero) }}{% if c.numero %}-{{ '%08d'|format(c.numero) }}{% endif %}
+                    <span class="badge badge--{{ 'verde' if c.estado == 'autorizado' else ('rojo' if c.estado in ('rechazado','error') else 'gris') }}">{{ c.estado|capitalize }}</span>
+                    {% if c.cae %}<br><small>CAE {{ c.cae }} · vto. {{ c.cae_vencimiento|fecha }}</small>{% endif %}
+                    <br><small class="muted">Neto {{ c.importe_neto|moneda }} · IVA {{ c.importe_iva|moneda }} · Total {{ c.importe_total|moneda }}</small></div>
+                {% else %}
+                <p class="muted text-sm mt-0">Sin comprobantes fiscales. La integración con ARCA está preparada; ver Configuración → Facturación.</p>
+                {% endfor %}
+                {% if v.estado == 'confirmada' and puntos_venta %}
+                <form method="post" action="{{ url_for('ventas.facturar', venta_id=v.id) }}" class="flex gap-1 mt-1 no-imprimir">
+                    {{ csrf() }}
+                    <select class="input" name="punto_venta_id" required>{% for pv in puntos_venta if pv.activo %}<option value="{{ pv.id }}">PV {{ '%05d'|format(pv.numero) }} · {{ pv.descripcion or '' }}</option>{% endfor %}</select>
+                    <button class="btn btn--sm">{{ icon('file') }} Preparar factura</button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if v.estado == 'confirmada' and current_user.puede('ventas.anular') %}
+<dialog class="modal" id="modal-anular">
+    <form method="post" action="{{ url_for('ventas.anular', venta_id=v.id) }}">
+        {{ csrf() }}
+        <div class="modal__cab"><h3>Anular venta {{ v.id|nro('V') }}</h3><button type="button" class="btn btn--fantasma btn-icono" data-cerrar-modal>{{ icon('x') }}</button></div>
+        <div class="modal__cuerpo">
+            <div class="aviso aviso--ambar mb-2">{{ icon('alert') }}<span>Se repone el stock, se registra la devolución de lo cobrado en la caja abierta y se revierte el saldo de cuenta corriente.</span></div>
+            <label class="etq" for="motivo">Motivo <span class="req">*</span></label>
+            <textarea class="input" id="motivo" name="motivo" required minlength="4" maxlength="255"></textarea>
+        </div>
+        <div class="modal__pie"><button type="button" class="btn" data-cerrar-modal>Cancelar</button><button class="btn btn--peligro">{{ icon('ban') }} Anular venta</button></div>
+    </form>
+</dialog>
+{% endif %}
+{% endblock %}

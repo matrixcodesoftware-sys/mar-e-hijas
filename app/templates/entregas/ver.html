@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import icon, badge, csrf, form_post %}
+{% block titulo %}Entrega {{ e.id|nro('E') }}{% endblock %}
+{% block contenido %}
+<div class="miga">{% if current_user.puede('entregas.ver') %}<a href="{{ url_for('entregas.index') }}">Entregas</a>{% else %}<a href="{{ url_for('entregas.mis_entregas') }}">Mis entregas</a>{% endif %} / {{ e.id|nro('E') }}</div>
+<div class="encabezado">
+    <div><h1>Entrega {{ e.id|nro('E') }}</h1><div class="encabezado__sub">{{ badge(e.estado, 'estado_entrega') }} · {{ e.fecha|fecha }} {{ e.horario or '' }}</div></div>
+    <div class="encabezado__acciones">
+        {% if e.pedido_id and current_user.puede('pedidos.ver') %}<a class="btn" href="{{ url_for('pedidos.ver', pedido_id=e.pedido_id) }}">{{ icon('clipboard') }} Pedido {{ e.pedido_id|nro('P') }}</a>{% endif %}
+        {% if e.venta_id and current_user.puede('ventas.ver') %}<a class="btn" href="{{ url_for('ventas.ver', venta_id=e.venta_id) }}">{{ icon('cart') }} Venta {{ e.venta_id|nro('V') }}</a>{% endif %}
+    </div>
+</div>
+
+<div class="grid grid-lateral">
+    <div>
+        <div class="card">
+            <div class="card__cab"><h3>Destino</h3></div>
+            <div class="card__cuerpo">
+                <div class="entrega-card__cliente">{{ e.cliente }}</div>
+                <div class="entrega-card__dir">{{ icon('pin') }}<span>{{ e.direccion }}{% if e.localidad %}, {{ e.localidad }}{% endif %}{% if e.referencia %}<br><small class="muted">{{ e.referencia }}</small>{% endif %}</span></div>
+                <div class="flex gap-1 mt-2 flex-wrap">
+                    {% set tel = e.telefono_contacto or e.cliente_whatsapp or e.cliente_telefono %}
+                    {% if tel %}<a class="btn btn--sm" href="tel:{{ tel }}">{{ icon('phone') }} {{ tel }}</a>{% endif %}
+                    <a class="btn btn--sm" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query={{ (e.direccion ~ ' ' ~ (e.localidad or ''))|urlencode }}">{{ icon('pin') }} Abrir en mapa</a>
+                </div>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card__cab"><h3>Carga</h3></div>
+            <div class="card__cuerpo"><ul class="lista-simple">
+                {% for d in detalle %}<li><span class="fw-600">{{ d.material }}</span><span class="num fw-600">{{ d.cantidad|cantidad }} {{ d.unidad }}</span></li>{% endfor %}
+            </ul>
+            {% if e.observaciones %}<div class="aviso aviso--azul mt-2">{{ icon('alert') }}<span>{{ e.observaciones }}</span></div>{% endif %}</div>
+        </div>
+        {% if e.estado == 'entregada' %}
+        <div class="aviso aviso--verde">{{ icon('check') }}<span>Entregada el {{ e.fecha_entrega_real|fecha_hora }}{% if e.recibido_por %} · recibió {{ e.recibido_por }}{% endif %}.</span></div>
+        {% elif e.estado == 'no_entregada' %}
+        <div class="aviso aviso--ambar">{{ icon('alert') }}<span>No entregada: {{ e.motivo_no_entrega }}</span></div>
+        {% endif %}
+    </div>
+    <div>
+        {% if current_user.puede('entregas.gestionar') and e.estado in ('pendiente','asignada','no_entregada') %}
+        <form method="post" action="{{ url_for('entregas.asignar', entrega_id=e.id) }}" class="card">
+            {{ csrf() }}
+            <div class="card__cab"><h3>Asignar / reprogramar</h3></div>
+            <div class="card__cuerpo form-grid">
+                <div class="campo col-12"><label>Camión</label><select class="input" name="vehiculo_id"><option value="">Sin asignar</option>
+                    {% for id, n in vehiculos %}<option value="{{ id }}" {{ 'selected' if e.vehiculo_id == id }}>{{ n }}</option>{% endfor %}</select></div>
+                <div class="campo col-12"><label>Chofer</label><select class="input" name="chofer_id"><option value="">Sin asignar</option>
+                    {% for id, n in choferes %}<option value="{{ id }}" {{ 'selected' if e.chofer_id == id }}>{{ n }}</option>{% endfor %}</select></div>
+                <div class="campo col-6"><label>Fecha</label><input class="input" type="date" name="fecha" value="{{ e.fecha|fecha_iso }}" required></div>
+                <div class="campo col-6"><label>Horario</label><input class="input" name="horario" value="{{ e.horario or '' }}" maxlength="40"></div>
+                <div class="campo col-12"><label>Observaciones</label><textarea class="input" name="observaciones" maxlength="1000">{{ e.observaciones or '' }}</textarea></div>
+            </div>
+            <div class="card__pie right"><button class="btn btn--primario">{{ icon('check') }} Guardar asignación</button></div>
+        </form>
+        {% else %}
+        <div class="card"><div class="card__cab"><h3>Asignación</h3></div><div class="card__cuerpo"><dl class="dl">
+            <dt>Camión</dt><dd>{{ e.patente or '—' }}{% if e.tipo_vehiculo %} · {{ e.tipo_vehiculo }}{% endif %}</dd>
+            <dt>Chofer</dt><dd>{{ e.chofer or '—' }}</dd>
+            {% if e.fecha_salida %}<dt>Salida</dt><dd>{{ e.fecha_salida|fecha_hora }}</dd>{% endif %}
+        </dl></div></div>
+        {% endif %}
+
+        {% set puede_chofer = current_user.puede('entregas.propias') and e.chofer_id == current_user.chofer_id %}
+        {% if transiciones and (current_user.puede('entregas.gestionar') or puede_chofer) %}
+        <div class="card">
+            <div class="card__cab"><h3>Estado</h3></div>
+            <div class="card__cuerpo">
+                {% if 'en_camino' in transiciones %}{{ form_post(url_for('entregas.estado', entrega_id=e.id), 'Salió hacia el cliente', 'btn btn--oscuro btn--bloque mb-1', icono='truck', extra={'estado': 'en_camino'}) }}{% endif %}
+                {% if 'entregada' in transiciones %}
+                <form method="post" action="{{ url_for('entregas.estado', entrega_id=e.id) }}" class="mb-1">
+                    {{ csrf() }}<input type="hidden" name="estado" value="entregada">
+                    <input class="input mb-1" name="recibido_por" placeholder="¿Quién recibió? (opcional)" maxlength="120">
+                    <button class="btn btn--exito btn--bloque btn-entregado">{{ icon('check') }} ENTREGA REALIZADA</button>
+                </form>
+                {% endif %}
+                {% if 'no_entregada' in transiciones %}
+                <form method="post" action="{{ url_for('entregas.estado', entrega_id=e.id) }}">
+                    {{ csrf() }}<input type="hidden" name="estado" value="no_entregada">
+                    <input class="input mb-1" name="motivo" placeholder="Motivo (cliente ausente, acceso bloqueado…)" maxlength="255" required>
+                    <button class="btn btn--bloque">{{ icon('x') }} No se pudo entregar</button>
+                </form>
+                {% endif %}
+                {% if current_user.puede('entregas.gestionar') %}
+                <div class="flex flex-wrap gap-1 mt-1">
+                    {% for est in transiciones if est not in ('en_camino','entregada','no_entregada') %}
+                    {{ form_post(url_for('entregas.estado', entrega_id=e.id), est|etiqueta('estado_entrega'), 'btn btn--sm ' ~ ('btn--peligro' if est == 'cancelada' else ''), confirmar=('¿Cancelar esta entrega?' if est == 'cancelada' else None), extra={'estado': est}) }}
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

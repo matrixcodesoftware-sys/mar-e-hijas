@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import icon, paginacion, resultado_info, buscar_primero, vacio %}
+{% block titulo %}Historial{% endblock %}
+{% block contenido %}
+<div class="encabezado"><div><h1>Historial de operaciones</h1><div class="encabezado__sub">Quién hizo qué, cuándo y sobre qué registro</div></div></div>
+<form class="filtros" method="get">
+    <input type="hidden" name="buscar" value="1">
+    <div class="filtros__grid">
+        <div class="campo"><label>Texto</label><input class="input" name="q" value="{{ request.args.q or '' }}" placeholder="Ej.: ripio, V-000123"></div>
+        <div class="campo"><label>Usuario</label><select class="input" name="usuario_id"><option value="">Todos</option>
+            {% for u in usuarios %}<option value="{{ u.id }}" {{ 'selected' if request.args.usuario_id == u.id|string }}>{{ u.nombre }} {{ u.apellido }}</option>{% endfor %}</select></div>
+        <div class="campo"><label>Módulo</label><select class="input" name="modulo"><option value="">Todos</option>
+            {% for m in modulos %}<option value="{{ m }}" {{ 'selected' if request.args.modulo == m }}>{{ m|capitalize }}</option>{% endfor %}</select></div>
+        <div class="campo"><label>Acción</label><select class="input" name="accion"><option value="">Todas</option>
+            {% for a in ['crear','modificar','anular','estado','ajustar','cerrar','convertir','eliminar','login','logout'] %}<option value="{{ a }}" {{ 'selected' if request.args.accion == a }}>{{ a|capitalize }}</option>{% endfor %}</select></div>
+        <div class="campo"><label>Desde</label><input class="input" type="date" name="desde" value="{{ request.args.desde or '' }}"></div>
+        <div class="campo"><label>Hasta</label><input class="input" type="date" name="hasta" value="{{ request.args.hasta or '' }}"></div>
+        <div class="filtros__acciones"><button class="btn btn--oscuro">{{ icon('search') }} Buscar</button></div>
+    </div>
+    <div class="chips"><a class="chip" href="{{ url_for('historial.index', desde=hoy_fecha|fecha_iso, buscar=1) }}">Hoy</a><a class="chip" href="{{ url_for('historial.index', accion='anular', buscar=1) }}">Anulaciones</a></div>
+</form>
+<div class="card">
+    {% if pagina is none %}{{ buscar_primero() }}
+    {% elif not pagina.items %}{{ vacio() }}
+    {% else %}
+    {{ resultado_info(pagina, "operaciones") }}
+    <div class="tabla-scroll"><table class="tabla tabla-responsive">
+        <thead><tr><th>Fecha</th><th>Hora</th><th>Usuario</th><th>Módulo</th><th>Acción</th><th>Detalle</th><th>Registro</th></tr></thead>
+        <tbody>{% for h in pagina.items %}
+        <tr>
+            <td data-etq="Fecha" class="nowrap">{{ h.fecha|fecha }}</td>
+            <td data-etq="Hora">{{ h.fecha|hora }}</td>
+            <td data-etq="Usuario">{{ h.usuario or 'Sistema' }}</td>
+            <td data-etq="Módulo">{{ h.modulo|capitalize }}</td>
+            <td data-etq="Acción"><span class="badge badge--{{ {'crear':'verde','anular':'rojo','eliminar':'rojo','modificar':'azul','estado':'celeste','ajustar':'ambar','cerrar':'violeta'}.get(h.accion, 'gris') }}">{{ h.accion|capitalize }}</span></td>
+            <td data-etq="Detalle">{{ h.descripcion }}</td>
+            <td data-etq="Registro" class="num muted">{{ h.registro_id or '' }}</td>
+        </tr>{% endfor %}</tbody>
+    </table></div>
+    {{ paginacion(pagina) }}
+    {% endif %}
+</div>
+{% endblock %}

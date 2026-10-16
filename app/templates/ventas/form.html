@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import icon, csrf %}
+{% block titulo %}Nueva venta{% endblock %}
+{% block contenido %}
+<div class="miga"><a href="{{ url_for('ventas.index') }}">Ventas</a> / Nueva</div>
+<div class="encabezado">
+    <div><h1>Nueva venta</h1>
+        <div class="encabezado__sub">
+            {% if d.presupuesto_id %}Desde presupuesto <a href="{{ url_for('presupuestos.ver', presupuesto_id=d.presupuesto_id) }}">{{ d.presupuesto_id|nro('PR') }}</a>{% endif %}
+            {% if d.pedido_id %}Desde pedido <a href="{{ url_for('pedidos.ver', pedido_id=d.pedido_id) }}">{{ d.pedido_id|nro('P') }}</a>{% endif %}
+            {% if not d.presupuesto_id and not d.pedido_id %}Registrá la venta: se descuenta el stock y se registra el cobro.{% endif %}
+        </div></div>
+</div>
+
+<form method="post" id="form-doc" data-modo="venta" novalidate>
+    {{ csrf() }}
+    <input type="hidden" name="presupuesto_id" value="{{ d.presupuesto_id or '' }}">
+    <input type="hidden" name="pedido_id" value="{{ d.pedido_id or '' }}">
+    <div class="grid grid-lateral">
+        <div>
+            {% set modo = 'venta' %}
+            {% include "partials/documento_form.html" %}
+            {% if not d.pedido_id %}
+            <div class="card" id="bloque-crear-entrega" {{ 'hidden' if d.tipo_entrega != 'envio' }}>
+                <div class="card__cab"><h3>Programar entrega</h3></div>
+                <div class="card__cuerpo form-grid">
+                    <div class="campo col-12"><label class="check"><input type="checkbox" name="crear_entrega" value="1" {{ 'checked' if d.crear_entrega }}> Crear la entrega pendiente para logística</label></div>
+                    <div class="campo col-6"><label>Fecha de entrega</label><input class="input" type="date" name="fecha_entrega" value="{{ d.fecha_entrega|fecha_iso }}"></div>
+                    <div class="campo col-6"><label>Horario</label><input class="input" name="horario_entrega" value="{{ d.horario_entrega or '' }}" placeholder="Ej.: 8 a 12 h" maxlength="40"></div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="resumen-doc">
+            <div class="card">
+                <div class="card__cab"><h3>Resumen</h3></div>
+                <div class="card__cuerpo">
+                    {% include "partials/resumen_totales.html" %}
+                </div>
+            </div>
+            <div class="card">
+                <div class="card__cab"><h3>Cobro</h3></div>
+                <div class="card__cuerpo form-grid">
+                    <div class="campo col-12"><label for="metodo_pago_id">Forma de pago <span class="req">*</span></label>
+                        <select class="input" id="metodo_pago_id" name="metodo_pago_id" required>
+                            {% for mp in metodos %}<option value="{{ mp.id }}" data-grupo="{{ mp.grupo }}" {{ 'selected' if d.metodo_pago_id|string == mp.id|string }}>{{ mp.nombre }}</option>{% endfor %}
+                        </select></div>
+                    <div class="campo col-12" id="campo-monto"><label for="monto_pagado">Monto cobrado ahora</label>
+                        <input class="input num" type="number" step="0.01" min="0" id="monto_pagado" name="monto_pagado" value="{{ d.monto_pagado or '' }}">
+                        <div class="campo__ayuda">Si cobrás menos del total, el resto va a la cuenta corriente del cliente.</div></div>
+                    <div class="campo col-12" id="campo-ref"><label for="referencia_pago">Referencia</label>
+                        <input class="input" id="referencia_pago" name="referencia_pago" value="{{ d.referencia_pago or '' }}" maxlength="100" placeholder="N.º de operación, cupón…"></div>
+                    <div class="col-12 totales" style="width:100%">
+                        <div><span>A cuenta corriente</span><span class="num fw-600" id="t-cc">$ 0,00</span></div>
+                        <div class="hidden" id="fila-vuelto"><span>Vuelto sugerido</span><span class="num" id="t-vuelto"></span></div>
+                    </div>
+                    <div class="col-12 aviso aviso--ambar hidden" id="aviso-limite">{{ icon('alert') }}<span id="aviso-limite-txt"></span></div>
+                    {% if not caja %}
+                    <div class="col-12 aviso aviso--rojo">{{ icon('cash') }}<span>No hay caja abierta: sólo podés registrar ventas 100 % a cuenta corriente.{% if current_user.puede('caja.operar') %} <a href="{{ url_for('caja.index') }}">Abrir caja</a>{% endif %}</span></div>
+                    {% endif %}
+                </div>
+                <div class="card__pie">
+                    <button class="btn btn--primario btn--lg btn--bloque" type="submit">{{ icon('check') }} Confirmar venta</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/documento.js') }}"></script>{% endblock %}

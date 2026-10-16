@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import icon, csrf %}
+{% block titulo %}Cuenta corriente · {{ c.razon_social }}{% endblock %}
+{% block contenido %}
+<div class="miga no-imprimir"><a href="{{ url_for('clientes.index') }}">Clientes</a> / <a href="{{ url_for('clientes.ver', cliente_id=c.id) }}">{{ c.razon_social }}</a> / Cuenta corriente</div>
+<div class="solo-impresion">
+    <h2>MAR E HIJAS — Resumen de cuenta</h2>
+</div>
+<div class="encabezado">
+    <div><h1>Cuenta corriente</h1><div class="encabezado__sub">{{ c.razon_social }}{% if c.documento %} · {{ c.documento_tipo }} {{ c.documento }}{% endif %}</div></div>
+    <div class="encabezado__acciones no-imprimir">
+        <button class="btn" data-imprimir>{{ icon('print') }} Imprimir</button>
+        <a class="btn" href="{{ url_for('clientes.cuenta_pdf', cliente_id=c.id, desde=desde|fecha_iso, hasta=hasta|fecha_iso) }}" target="_blank">{{ icon('pdf') }} PDF</a>
+        {% if current_user.puede('cuentas.gestionar') %}
+        <button class="btn btn--primario" data-abrir-modal="modal-pago">{{ icon('dollar') }} Registrar pago</button>
+        <button class="btn" data-abrir-modal="modal-manual">{{ icon('plus') }} Deuda / crédito</button>
+        {% endif %}
+    </div>
+</div>
+
+{% set saldo = r.cuenta.saldo if r.cuenta else 0 %}
+<div class="kpis">
+    <div class="kpi kpi--acento">
+        <div class="kpi__etq">{{ 'Saldo pendiente' if saldo > 0 else ('Saldo a favor' if saldo < 0 else 'Cuenta saldada') }}</div>
+        <div class="saldo-grande mt-1 {{ 'saldo-deudor' if saldo > 0 else 'saldo-acreedor' }}">{{ saldo|abs|moneda }}</div>
+    </div>
+    <div class="kpi"><div class="kpi__etq">Límite de crédito</div><div class="kpi__valor">{{ (r.cuenta.limite_credito|moneda) if r.cuenta and r.cuenta.limite_credito > 0 else 'Sin límite' }}</div>
+        {% if r.cuenta and r.cuenta.limite_credito > 0 %}<div class="kpi__det">Disponible {{ [r.cuenta.limite_credito - saldo, 0]|max|moneda }}</div>{% endif %}</div>
+    <div class="kpi"><div class="kpi__etq">Movimientos del período</div><div class="kpi__valor">{{ r.movimientos|length }}</div>
+        <div class="kpi__det">Debe {{ (r.total_debe or 0)|moneda }} · Haber {{ (r.total_haber or 0)|moneda }}</div></div>
+</div>
+
+<form class="filtros no-imprimir" method="get">
+    <div class="filtros__grid">
+        <div class="campo"><label>Desde</label><input class="input" type="date" name="desde" value="{{ desde|fecha_iso }}"></div>
+        <div class="campo"><label>Hasta</label><input class="input" type="date" name="hasta" value="{{ hasta|fecha_iso }}"></div>
+        <div class="filtros__acciones"><button class="btn btn--oscuro">{{ icon('filter') }} Filtrar</button>
+            <a class="btn btn--fantasma" href="{{ url_for('clientes.cuenta', cliente_id=c.id) }}">Todo</a></div>
+    </div>
+</form>
+
+<div class="card">
+    <div class="tabla-scroll"><table class="tabla tabla-responsive">
+        <thead><tr><th>Fecha</th><th>Concepto</th><th class="right">Debe</th><th class="right">Haber</th><th class="right">Saldo</th><th class="no-imprimir">Usuario</th></tr></thead>
+        <tbody>
+        {% if desde %}
+        <tr><td data-etq="Fecha">{{ desde|fecha }}</td><td data-etq="Concepto"><em>Saldo anterior</em></td><td></td><td></td><td data-etq="Saldo" class="right num fw-600">{{ r.saldo_inicial|moneda }}</td><td class="no-imprimir"></td></tr>
+        {% endif %}
+        {% for m in r.movimientos %}
+        <tr>
+            <td data-etq="Fecha" class="nowrap">{{ m.fecha|fecha }}</td>
+            <td data-etq="Concepto">{% if m.venta_id %}<a href="{{ url_for('ventas.ver', venta_id=m.venta_id) }}">{{ m.concepto }}</a>{% else %}{{ m.concepto }}{% endif %}</td>
+            <td data-etq="Debe" class="right num {{ 'text-rojo' if m.debe }}">{{ m.debe|moneda if m.debe else '' }}</td>
+            <td data-etq="Haber" class="right num {{ 'text-verde' if m.haber }}">{{ m.haber|moneda if m.haber else '' }}</td>
+            <td data-etq="Saldo" class="right num fw-600">{{ m.saldo_resultante|moneda }}</td>
+            <td data-etq="Usuario" class="no-imprimir"><small class="muted">{{ m.usuario }}</small></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="center muted">Sin movimientos en el período.</td></tr>
+        {% endfor %}
+        </tbody>
+        {% if r.movimientos %}
+        <tfoot><tr><td></td><td>Totales</td><td class="right num">{{ r.total_debe|moneda }}</td><td class="right num">{{ r.total_haber|moneda }}</td><td class="right num">{{ r.saldo_final|moneda }}</td><td class="no-imprimir"></td></tr></tfoot>
+        {% endif %}
+    </table></div>
+</div>
+
+{% if current_user.puede('cuentas.gestionar') %}
+<dialog class="modal" id="modal-pago">
+    <form method="post" action="{{ url_for('clientes.cuenta_movimiento', cliente_id=c.id) }}">
+        {{ csrf() }}<input type="hidden" name="tipo" value="pago">
+        <div class="modal__cab"><h3>Registrar pago</h3><button type="button" class="btn btn--fantasma btn-icono" data-cerrar-modal>{{ icon('x') }}</button></div>
+        <div class="modal__cuerpo form-grid">
+            <div class="campo col-6"><label>Monto <span class="req">*</span></label><input class="input num" type="number" name="monto" step="0.01" min="0.01" required value="{{ saldo if saldo > 0 else '' }}"></div>
+            <div class="campo col-6"><label>Método <span class="req">*</span></label><select class="input" name="metodo_pago_id" required>{% for mp in metodos %}<option value="{{ mp.id }}">{{ mp.nombre }}</option>{% endfor %}</select></div>
+            <div class="campo col-12"><label>Referencia</label><input class="input" name="referencia" maxlength="100" placeholder="N.º de transferencia, cupón…"></div>
+            <div class="campo col-12"><label>Observaciones</label><input class="input" name="observaciones" maxlength="255"></div>
+            <div class="col-12 aviso aviso--azul">{{ icon('cash') }}<span>El pago ingresa en la caja abierta con el método elegido.</span></div>
+        </div>
+        <div class="modal__pie"><button type="button" class="btn" data-cerrar-modal>Cancelar</button><button class="btn btn--primario">{{ icon('check') }} Registrar pago</button></div>
+    </form>
+</dialog>
+<dialog class="modal" id="modal-manual">
+    <form method="post" action="{{ url_for('clientes.cuenta_movimiento', cliente_id=c.id) }}">
+        {{ csrf() }}
+        <div class="modal__cab"><h3>Deuda o crédito manual</h3><button type="button" class="btn btn--fantasma btn-icono" data-cerrar-modal>{{ icon('x') }}</button></div>
+        <div class="modal__cuerpo form-grid">
+            <div class="campo col-12"><div class="segmentado">
+                <input type="radio" id="t_deuda" name="tipo" value="deuda" checked><label for="t_deuda">Deuda (debe)</label>
+                <input type="radio" id="t_credito" name="tipo" value="credito"><label for="t_credito">Crédito (haber)</label></div></div>
+            <div class="campo col-6"><label>Monto <span class="req">*</span></label><input class="input num" type="number" name="monto" step="0.01" min="0.01" required></div>
+            <div class="campo col-12"><label>Concepto <span class="req">*</span></label><input class="input" name="concepto" maxlength="200" required placeholder="Ej.: saldo inicial, bonificación por flete…"></div>
+            <div class="col-12 aviso aviso--ambar">{{ icon('alert') }}<span>No genera movimiento de caja. Queda registrado en el historial.</span></div>
+        </div>
+        <div class="modal__pie"><button type="button" class="btn" data-cerrar-modal>Cancelar</button><button class="btn btn--primario">{{ icon('check') }} Registrar</button></div>
+    </form>
+</dialog>
+{% endif %}
+{% endblock %}

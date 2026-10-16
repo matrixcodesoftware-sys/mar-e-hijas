@@ -1,0 +1,50 @@
+{% extends "configuracion/_layout.html" %}
+{% from "partials/macros.html" import icon, csrf, badge_activo %}
+{% block seccion %}
+<div class="aviso {{ 'aviso--verde' if estado.disponible else 'aviso--ambar' }} mb-2">{{ icon('file') }}
+    <span>{% if estado.disponible %}Proveedor de facturación activo: <strong>{{ estado.proveedor }}</strong>.
+    {% else %}<strong>Facturación electrónica no integrada todavía.</strong> El sistema ya guarda tipo de comprobante, punto de venta, número, CUIT, condición frente al IVA, CAE y vencimiento de CAE, y prepara cada factura como borrador. Para emitir con ARCA hay que implementar el proveedor WSFEv1 en <code>app/services/facturacion/</code> y configurarlo en el archivo <code>.env</code> (ver <code>docs/ARQUITECTURA.md</code> §12).{% endif %}</span></div>
+
+<div class="grid grid-2">
+    <div class="card">
+        <div class="card__cab"><h3>Datos fiscales del emisor</h3>{% if current_user.puede('configuracion.gestionar') %}<a class="btn btn--sm" href="{{ url_for('configuracion.seccion', nombre='empresa') }}">Editar</a>{% endif %}</div>
+        <div class="card__cuerpo"><dl class="dl">
+            <dt>Razón social</dt><dd>{{ cfg.empresa_razon_social or '— sin cargar —' }}</dd>
+            <dt>CUIT</dt><dd>{{ cfg.empresa_cuit or '— sin cargar —' }}</dd>
+            <dt>Condición IVA</dt><dd>{{ cfg.empresa_condicion_iva|etiqueta('condicion_iva') }}</dd>
+            <dt>Inicio de actividades</dt><dd>{{ cfg.empresa_inicio_actividades or '—' }}</dd>
+        </dl></div>
+    </div>
+    <div class="card">
+        <div class="card__cab"><h3>Puntos de venta</h3></div>
+        <div class="tabla-scroll"><table class="tabla tabla--compacta">
+            <thead><tr><th>N.º</th><th>Descripción</th><th>Modalidad</th><th>Estado</th></tr></thead>
+            <tbody>{% for p in puntos %}<tr><td class="num">{{ '%05d'|format(p.numero) }}</td><td>{{ p.descripcion or '' }}</td><td>{{ p.modalidad|capitalize }}</td><td>{{ badge_activo(p.activo) }}</td></tr>
+            {% else %}<tr><td colspan="4" class="center muted">Sin puntos de venta.</td></tr>{% endfor %}</tbody>
+        </table></div>
+        <form method="post" class="card__cuerpo form-grid" style="border-top:1px solid var(--borde)">
+            {{ csrf() }}
+            <div class="campo col-3"><label>Número</label><input class="input num" type="number" name="numero" min="1" max="99998" required></div>
+            <div class="campo col-5"><label>Descripción</label><input class="input" name="descripcion" maxlength="100"></div>
+            <div class="campo col-4"><label>Modalidad</label><select class="input" name="modalidad"><option value="electronico">Electrónico</option><option value="manual">Manual</option></select></div>
+            <div class="campo col-6"><label class="check"><input type="checkbox" name="activo" value="1" checked> Activo</label></div>
+            <div class="col-6 right"><button class="btn btn--oscuro">{{ icon('plus') }} Agregar punto de venta</button></div>
+        </form>
+    </div>
+    <div class="card">
+        <div class="card__cab"><h3>Tipos de comprobante (códigos ARCA)</h3></div>
+        <div class="tabla-scroll"><table class="tabla tabla--compacta">
+            <thead><tr><th>Código</th><th>Descripción</th><th>Letra</th></tr></thead>
+            <tbody>{% for t in tipos %}<tr><td class="num">{{ t.codigo }}</td><td>{{ t.descripcion }}</td><td>{{ t.letra }}</td></tr>{% endfor %}</tbody>
+        </table></div>
+    </div>
+    <div class="card">
+        <div class="card__cab"><h3>Últimos comprobantes preparados</h3></div>
+        <div class="tabla-scroll"><table class="tabla tabla--compacta">
+            <thead><tr><th>Venta</th><th>Tipo</th><th class="right">Total</th><th>Estado</th></tr></thead>
+            <tbody>{% for c in ultimos %}<tr><td><a href="{{ url_for('ventas.ver', venta_id=c.venta_id) }}">{{ c.venta_id|nro('V') }}</a></td><td>{{ c.tipo_desc }}</td><td class="right num">{{ c.importe_total|moneda }}</td><td>{{ c.estado|capitalize }}</td></tr>
+            {% else %}<tr><td colspan="4" class="center muted">Ninguno.</td></tr>{% endfor %}</tbody>
+        </table></div>
+    </div>
+</div>
+{% endblock %}

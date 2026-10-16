@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import icon, badge %}
+{% block titulo %}Reportes · {{ tipos[tipo] }}{% endblock %}
+{% block contenido %}
+<div class="encabezado">
+    <div><h1>Reportes</h1><div class="encabezado__sub">{{ tipos[tipo] }} · {{ desde|fecha }} al {{ hasta|fecha }}</div></div>
+    <div class="encabezado__acciones no-imprimir">
+        {% set qs = request.args.to_dict() %}
+        <a class="btn" href="{{ url_for('reportes.ver', tipo=tipo, formato='csv', **qs) }}">{{ icon('download') }} CSV</a>
+        <a class="btn" href="{{ url_for('reportes.ver', tipo=tipo, formato='pdf', **qs) }}" target="_blank">{{ icon('pdf') }} PDF</a>
+    </div>
+</div>
+<nav class="tabs no-imprimir">
+    {% for k, t in tipos.items() %}<a class="{{ 'activo' if k == tipo }}" href="{{ url_for('reportes.ver', tipo=k, periodo=periodo, desde=request.args.desde, hasta=request.args.hasta) }}">{{ t }}</a>{% endfor %}
+</nav>
+
+<form class="filtros no-imprimir" method="get">
+    <div class="filtros__grid">
+        <div class="campo"><label>Período</label><select class="input" name="periodo" id="sel-periodo">
+            {% for k, t in [('hoy','Hoy'),('ayer','Ayer'),('semana','Esta semana'),('mes','Este mes'),('mes_anterior','Mes anterior'),('anio','Este año'),('rango','Rango de fechas')] %}
+            <option value="{{ k }}" {{ 'selected' if periodo == k }}>{{ t }}</option>{% endfor %}</select></div>
+        <div class="campo"><label>Desde</label><input class="input" type="date" name="desde" value="{{ desde|fecha_iso }}"></div>
+        <div class="campo"><label>Hasta</label><input class="input" type="date" name="hasta" value="{{ hasta|fecha_iso }}"></div>
+        {% if tipo == 'ventas' %}
+        <div class="campo"><label>Cliente</label><div data-selector="clientes" data-name="cliente_id" data-valor="{{ cliente_sel.id if cliente_sel else '' }}" data-texto="{{ cliente_sel.razon_social if cliente_sel else '' }}" data-placeholder="Todos"></div></div>
+        <div class="campo"><label>Material</label><select class="input" name="material_id"><option value="">Todos</option>
+            {% for id, n in materiales %}<option value="{{ id }}" {{ 'selected' if request.args.material_id == id|string }}>{{ n }}</option>{% endfor %}</select></div>
+        <div class="campo"><label>Vendedor</label><select class="input" name="usuario_id"><option value="">Todos</option>
+            {% for u in vendedores %}<option value="{{ u.id }}" {{ 'selected' if request.args.usuario_id == u.id|string }}>{{ u.nombre }} {{ u.apellido }}</option>{% endfor %}</select></div>
+        {% elif tipo == 'materiales' %}
+        <div class="campo"><label>Ordenar por</label><select class="input" name="orden">
+            {% for k, t in [('cantidad','Más vendidos'),('menos','Menos vendidos'),('facturacion','Mayor facturación'),('ganancia','Mayor ganancia')] %}<option value="{{ k }}" {{ 'selected' if orden == k }}>{{ t }}</option>{% endfor %}</select></div>
+        {% elif tipo == 'clientes' %}
+        <div class="campo"><label>Ordenar por</label><select class="input" name="orden">
+            <option value="consumo" {{ 'selected' if orden == 'consumo' }}>Mayor consumo</option>
+            <option value="frecuencia" {{ 'selected' if orden == 'frecuencia' }}>Más frecuentes</option></select></div>
+        {% endif %}
+        <div class="filtros__acciones"><button class="btn btn--oscuro">{{ icon('filter') }} Aplicar</button></div>
+    </div>
+</form>
+<script type="application/json" id="datos-reporte">{{ {"tipo": tipo, "grafico": grafico, "mensual": mensual_json}|tojson }}</script>
+
+{% if tipo == 'ventas' %}
+<div class="kpis">
+    <div class="kpi kpi--acento"><div class="kpi__etq">Facturación</div><div class="kpi__valor">{{ resumen.facturacion|moneda }}</div><div class="kpi__det">incluye fletes {{ resumen.fletes|moneda }}</div></div>
+    <div class="kpi"><div class="kpi__etq">Cantidad de ventas</div><div class="kpi__valor">{{ resumen.cantidad }}</div><div class="kpi__det">ticket promedio {{ resumen.ticket|moneda }}</div></div>
+    <div class="kpi"><div class="kpi__etq">Ganancia estimada</div><div class="kpi__valor">{{ resumen.ganancia|moneda }}</div><div class="kpi__det">facturación − costo de mercadería</div></div>
+    <div class="kpi"><div class="kpi__etq">Vendido a cuenta corriente</div><div class="kpi__valor">{{ resumen.a_cuenta|moneda }}</div></div>
+    {% if request.args.material_id %}
+    <div class="kpi"><div class="kpi__etq">Cantidad vendida del material</div><div class="kpi__valor">{{ resumen.cantidad_material|cantidad }}</div><div class="kpi__det">{{ resumen.facturacion_material|moneda }} · ganancia {{ resumen.ganancia_material|moneda }}</div></div>
+    {% endif %}
+</div>
+<div class="grid grid-2">
+    <div class="card"><div class="card__cab"><h3>Facturación por día</h3></div><div class="card__cuerpo"><div class="grafico"><canvas id="g-principal"></canvas></div></div></div>
+    <div class="card"><div class="card__cab"><h3>Facturación por mes (12 meses)</h3></div><div class="card__cuerpo"><div class="grafico"><canvas id="g-mensual"></canvas></div></div></div>
+    <div class="card"><div class="card__cab"><h3>Métodos de pago</h3></div><div class="card__cuerpo"><div class="grafico grafico--bajo"><canvas id="g-metodos"></canvas></div></div></div>
+    <div class="card"><div class="card__cab"><h3>Por vendedor</h3></div>
+        <div class="tabla-scroll"><table class="tabla">
+            <thead><tr><th>Vendedor</th><th class="right">Ventas</th><th class="right">Facturación</th><th class="right">Ganancia</th></tr></thead>
+            <tbody>{% for v in por_vendedor %}<tr><td>{{ v.vendedor }}</td><td class="right num">{{ v.cantidad }}</td><td class="right num">{{ v.total|moneda }}</td><td class="right num">{{ v.ganancia|moneda }}</td></tr>
+            {% else %}<tr><td colspan="4" class="center muted">Sin ventas en el período.</td></tr>{% endfor %}</tbody>
+        </table></div></div>
+</div>
+
+{% elif tipo == 'materiales' %}
+<div class="grid grid-lateral">
+    <div>
+        <div class="card"><div class="card__cab"><h3>{{ {'cantidad':'Más vendidos','menos':'Menos vendidos','facturacion':'Mayor facturación','ganancia':'Mayor ganancia'}[orden] }}</h3></div>
+            <div class="card__cuerpo"><div class="grafico"><canvas id="g-principal"></canvas></div></div></div>
+        <div class="card"><div class="tabla-scroll"><table class="tabla tabla-responsive">
+            <thead><tr><th>Material</th><th class="right">Cantidad vendida</th><th class="right">Facturación</th><th class="right">Ganancia</th><th class="right">Ventas</th></tr></thead>
+            <tbody>{% for m in ranking %}<tr><td data-etq="Material">{{ m.nombre }}</td><td data-etq="Cantidad" class="right num">{{ m.cantidad|cantidad }} {{ m.unidad }}</td>
+                <td data-etq="Facturación" class="right num">{{ m.facturacion|moneda }}</td><td data-etq="Ganancia" class="right num">{{ m.ganancia|moneda }}</td><td data-etq="Ventas" class="right num">{{ m.ventas }}</td></tr>{% endfor %}</tbody>
+        </table></div></div>
+    </div>
+    <div class="card"><div class="card__cab"><h3>Bajo stock</h3></div>
+        <div class="card__cuerpo"><ul class="lista-simple">
+            {% for m in bajo %}<li><a href="{{ url_for('materiales.ver', material_id=m.id) }}">{{ m.nombre }}</a><span class="num text-rojo fw-600">{{ m.stock_actual|cantidad }} / {{ m.stock_minimo|cantidad }} {{ m.unidad_abrev }}</span></li>
+            {% else %}<li class="muted">Ningún material bajo el mínimo.</li>{% endfor %}
+        </ul></div></div>
+</div>
+
+{% elif tipo == 'clientes' %}
+<div class="grid grid-2">
+    <div class="card"><div class="card__cab"><h3>{{ 'Clientes con mayor consumo' if orden == 'consumo' else 'Clientes más frecuentes' }}</h3></div>
+        <div class="card__cuerpo"><div class="grafico"><canvas id="g-principal"></canvas></div></div>
+        <div class="tabla-scroll"><table class="tabla tabla-responsive tabla--compacta">
+            <thead><tr><th>Cliente</th><th class="right">Compras</th><th class="right">Total</th><th>Última</th></tr></thead>
+            <tbody>{% for c in ranking %}<tr><td data-etq="Cliente"><a href="{{ url_for('clientes.ver', cliente_id=c.id) }}">{{ c.razon_social }}</a></td><td data-etq="Compras" class="right num">{{ c.compras }}</td><td data-etq="Total" class="right num">{{ c.total|moneda }}</td><td data-etq="Última">{{ c.ultima|fecha }}</td></tr>
+            {% else %}<tr><td colspan="4" class="center muted">Sin ventas en el período.</td></tr>{% endfor %}</tbody>
+        </table></div></div>
+    <div class="card"><div class="card__cab"><h3>Clientes con deuda</h3>
+        <span class="no-imprimir"><a class="btn btn--sm" href="{{ url_for('reportes.ver', tipo='clientes', formato='csv', lista='deudores') }}">CSV</a>
+        <a class="btn btn--sm" target="_blank" href="{{ url_for('reportes.ver', tipo='clientes', formato='pdf', lista='deudores') }}">PDF</a></span></div>
+        <div class="tabla-scroll"><table class="tabla tabla-responsive tabla--compacta">
+            <thead><tr><th>Cliente</th><th>Contacto</th><th class="right">Saldo</th><th>Último pago</th></tr></thead>
+            <tbody>{% for c in deudores %}<tr><td data-etq="Cliente"><a href="{{ url_for('clientes.cuenta', cliente_id=c.id) }}">{{ c.razon_social }}</a></td><td data-etq="Contacto">{{ c.whatsapp or c.telefono or '—' }}</td><td data-etq="Saldo" class="right num text-rojo fw-600">{{ c.saldo|moneda }}</td><td data-etq="Último pago">{{ c.ultimo_pago|fecha or '—' }}</td></tr>
+            {% else %}<tr><td colspan="4" class="center muted">No hay clientes con deuda.</td></tr>{% endfor %}</tbody>
+            {% if deudores %}<tfoot><tr><td colspan="2">Total adeudado</td><td class="right num">{{ deudores|sum(attribute='saldo')|moneda }}</td><td></td></tr></tfoot>{% endif %}
+        </table></div></div>
+</div>
+
+{% elif tipo == 'entregas' %}
+<div class="kpis">
+    <div class="kpi kpi--acento"><div class="kpi__etq">Entregas del período</div><div class="kpi__valor">{{ resumen.total }}</div></div>
+    <div class="kpi"><div class="kpi__etq">Realizadas</div><div class="kpi__valor text-verde">{{ resumen.entregadas or 0 }}</div></div>
+    <div class="kpi"><div class="kpi__etq">Pendientes</div><div class="kpi__valor">{{ resumen.pendientes or 0 }}</div></div>
+    <div class="kpi"><div class="kpi__etq">No entregadas</div><div class="kpi__valor text-ambar">{{ resumen.no_entregadas or 0 }}</div></div>
+    <div class="kpi"><div class="kpi__etq">Canceladas</div><div class="kpi__valor text-rojo">{{ resumen.canceladas or 0 }}</div></div>
+</div>
+<div class="card"><div class="card__cab"><h3>Entregas por fecha</h3></div><div class="card__cuerpo"><div class="grafico"><canvas id="g-principal"></canvas></div></div></div>
+<div class="grid grid-2 mt-2">
+    {% for titulo, datos, agrupar in [('Por chofer', por_chofer, 'chofer'), ('Por vehículo', por_vehiculo, 'vehiculo')] %}
+    <div class="card"><div class="card__cab"><h3>{{ titulo }}</h3>
+        <span class="no-imprimir"><a class="btn btn--sm" href="{{ url_for('reportes.ver', tipo='entregas', formato='csv', agrupar=agrupar, **request.args.to_dict()) }}">CSV</a></span></div>
+        <div class="tabla-scroll"><table class="tabla tabla-responsive tabla--compacta">
+            <thead><tr><th>{{ 'Chofer' if agrupar == 'chofer' else 'Vehículo' }}</th><th class="right">Total</th><th class="right">Entregadas</th><th class="right">Pend.</th><th class="right">No entr.</th><th class="right">Canc.</th></tr></thead>
+            <tbody>{% for d in datos %}<tr><td data-etq="Nombre">{{ d.nombre }}{% if d.tipo %} <small class="muted">{{ d.tipo }}</small>{% endif %}</td><td data-etq="Total" class="right num">{{ d.total }}</td><td data-etq="Entregadas" class="right num text-verde">{{ d.entregadas }}</td><td data-etq="Pend." class="right num">{{ d.pendientes }}</td><td data-etq="No entr." class="right num">{{ d.no_entregadas }}</td><td data-etq="Canc." class="right num">{{ d.canceladas }}</td></tr>
+            {% else %}<tr><td colspan="6" class="center muted">Sin entregas.</td></tr>{% endfor %}</tbody>
+        </table></div></div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/vendor/chart.umd.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/graficos.js') }}"></script>
+<script src="{{ url_for('static', filename='js/reportes.js') }}"></script>
+{% endblock %}

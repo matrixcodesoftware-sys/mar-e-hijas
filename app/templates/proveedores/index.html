@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import icon, badge_activo, paginacion, resultado_info, buscar_primero, vacio %}
+{% block titulo %}Proveedores{% endblock %}
+{% block contenido %}
+<div class="encabezado">
+    <div><h1>Proveedores</h1><div class="encabezado__sub">Canteras, areneras y transportistas</div></div>
+    <div class="encabezado__acciones">{% if current_user.puede('proveedores.gestionar') %}<a class="btn btn--primario" href="{{ url_for('proveedores.nuevo') }}">{{ icon('plus') }} Nuevo proveedor</a>{% endif %}</div>
+</div>
+<form class="filtros" method="get">
+    <input type="hidden" name="buscar" value="1">
+    <div class="filtros__grid">
+        <div class="campo"><label>Buscar</label><input class="input" name="q" value="{{ request.args.q or '' }}" placeholder="Razón social, CUIT o contacto"></div>
+        <div class="campo"><label>Estado</label><select class="input" name="activo">
+            <option value="1" {{ 'selected' if request.args.get('activo','1') == '1' }}>Activos</option>
+            <option value="0" {{ 'selected' if request.args.activo == '0' }}>Inactivos</option>
+            <option value="" {{ 'selected' if request.args.activo == '' }}>Todos</option></select></div>
+        <div class="campo"><label class="check mt-2"><input type="checkbox" name="deuda" value="1" {{ 'checked' if request.args.deuda }}> Con saldo a pagar</label></div>
+        <div class="filtros__acciones"><button class="btn btn--oscuro">{{ icon('search') }} Buscar</button></div>
+    </div>
+    <div class="chips"><a class="chip" href="{{ url_for('proveedores.index', rapido='todos', activo='') }}">Ver todos</a></div>
+</form>
+<div class="card">
+    {% if pagina is none %}{{ buscar_primero() }}
+    {% elif not pagina.items %}{{ vacio() }}
+    {% else %}
+    {{ resultado_info(pagina, "proveedores") }}
+    <div class="tabla-scroll"><table class="tabla tabla-responsive">
+        <thead><tr><th>Razón social</th><th>CUIT</th><th>Contacto</th><th>Teléfono</th><th class="right">Le debemos</th><th>Estado</th><th></th></tr></thead>
+        <tbody>{% for p in pagina.items %}
+        <tr>
+            <td data-etq="Razón social"><a class="fw-600" href="{{ url_for('proveedores.ver', proveedor_id=p.id) }}">{{ p.razon_social }}</a>{% if p.localidad %}<br><small class="muted">{{ p.localidad }}</small>{% endif %}</td>
+            <td data-etq="CUIT" class="num">{{ p.cuit or '—' }}</td>
+            <td data-etq="Contacto">{{ p.contacto or '—' }}</td>
+            <td data-etq="Teléfono">{{ p.telefono or '—' }}</td>
+            <td data-etq="Saldo" class="right num fw-600 {{ 'text-rojo' if p.saldo_cuenta > 0 }}">{{ p.saldo_cuenta|moneda }}</td>
+            <td data-etq="Estado">{{ badge_activo(p.activo) }}</td>
+            <td class="acciones">{% if current_user.puede('proveedores.gestionar') %}<a class="btn btn--sm btn--fantasma" href="{{ url_for('proveedores.editar', proveedor_id=p.id) }}">{{ icon('edit') }}</a>{% endif %}</td>
+        </tr>{% endfor %}</tbody>
+    </table></div>
+    {{ paginacion(pagina) }}
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,9 @@
+{# Bloque de totales compartido #}
+<div class="totales" style="width:100%">
+    <div><span>Subtotal</span><span class="num" id="t-subtotal">$ 0,00</span></div>
+    <div class="flex between gap-1"><label for="descuento_general" class="muted">Descuento general $</label>
+        <input class="input num" style="max-width:140px" type="number" step="0.01" min="0" id="descuento_general" name="descuento_general" value="{{ d.descuento_general or '' }}"></div>
+    <div class="flex between gap-1" id="fila-envio"><label for="costo_envio" class="muted">Flete $</label>
+        <input class="input num" style="max-width:140px" type="number" step="0.01" min="0" id="costo_envio" name="costo_envio" value="{{ d.costo_envio or '' }}"></div>
+    <div class="total"><span>TOTAL</span><span class="num" id="t-total">$ 0,00</span></div>
+</div>

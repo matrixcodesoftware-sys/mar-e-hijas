@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import icon, badge, badge_activo, paginacion, resultado_info, buscar_primero, vacio %}
+{% block titulo %}Clientes{% endblock %}
+{% block contenido %}
+<div class="encabezado">
+    <div><h1>Clientes</h1><div class="encabezado__sub">Particulares, constructores, empresas y corralones</div></div>
+    <div class="encabezado__acciones">
+        {% if current_user.puede('clientes.gestionar') %}<a class="btn btn--primario" href="{{ url_for('clientes.nuevo') }}">{{ icon('plus') }} Nuevo cliente</a>{% endif %}
+    </div>
+</div>
+<form class="filtros" method="get">
+    <input type="hidden" name="buscar" value="1">
+    <div class="filtros__grid">
+        <div class="campo"><label>Buscar</label><input class="input" name="q" value="{{ request.args.q or '' }}" placeholder="Nombre, DNI/CUIT o teléfono" autofocus></div>
+        <div class="campo"><label>Tipo</label><select class="input" name="tipo"><option value="">Todos</option>
+            {% for k, t in opciones('tipo_cliente') %}<option value="{{ k }}" {{ 'selected' if request.args.tipo == k }}>{{ t }}</option>{% endfor %}</select></div>
+        <div class="campo"><label>Localidad</label><input class="input" name="localidad" value="{{ request.args.localidad or '' }}"></div>
+        <div class="campo"><label>Estado</label><select class="input" name="activo">
+            <option value="1" {{ 'selected' if request.args.get('activo','1') == '1' }}>Activos</option>
+            <option value="0" {{ 'selected' if request.args.activo == '0' }}>Inactivos</option>
+            <option value="" {{ 'selected' if request.args.activo == '' }}>Todos</option></select></div>
+        {% if current_user.puede('cuentas.ver') %}
+        <div class="campo"><label class="check mt-2"><input type="checkbox" name="deuda" value="1" {{ 'checked' if request.args.deuda }}> Sólo con deuda</label></div>
+        {% endif %}
+        <div class="filtros__acciones"><button class="btn btn--oscuro">{{ icon('search') }} Buscar</button></div>
+    </div>
+</form>
+<div class="card">
+    {% if pagina is none %}{{ buscar_primero("Buscá un cliente por nombre, documento o teléfono.") }}
+    {% elif not pagina.items %}{{ vacio() }}
+    {% else %}
+    {{ resultado_info(pagina, "clientes") }}
+    <div class="tabla-scroll"><table class="tabla tabla-responsive">
+        <thead><tr><th>Cliente</th><th>Tipo</th><th>Documento</th><th>Contacto</th><th>Localidad</th>{% if current_user.puede('cuentas.ver') %}<th class="right">Saldo cta. cte.</th>{% endif %}<th>Estado</th><th></th></tr></thead>
+        <tbody>
+        {% for c in pagina.items %}
+        <tr>
+            <td data-etq="Cliente"><a class="fw-600" href="{{ url_for('clientes.ver', cliente_id=c.id) }}">{{ c.razon_social }}</a></td>
+            <td data-etq="Tipo">{{ badge(c.tipo, 'tipo_cliente') }}</td>
+            <td data-etq="Documento" class="num">{{ c.documento or '—' }}</td>
+            <td data-etq="Contacto">{{ c.whatsapp or c.telefono or '—' }}</td>
+            <td data-etq="Localidad">{{ c.localidad or '—' }}{% if c.zona %}<br><small class="muted">{{ c.zona }}</small>{% endif %}</td>
+            {% if current_user.puede('cuentas.ver') %}<td data-etq="Saldo" class="right num fw-600 {{ 'text-rojo' if c.saldo and c.saldo > 0 else ('text-verde' if c.saldo and c.saldo < 0) }}">{{ (c.saldo or 0)|moneda }}</td>{% endif %}
+            <td data-etq="Estado">{{ badge_activo(c.activo) }}</td>
+            <td class="acciones">
+                {% if current_user.puede('cuentas.ver') %}<a class="btn btn--sm btn--fantasma" title="Cuenta corriente" href="{{ url_for('clientes.cuenta', cliente_id=c.id) }}">{{ icon('dollar') }}</a>{% endif %}
+                {% if current_user.puede('ventas.crear') %}<a class="btn btn--sm btn--fantasma" title="Nueva venta" href="{{ url_for('ventas.nueva', cliente_id=c.id) }}">{{ icon('cart') }}</a>{% endif %}
+                {% if current_user.puede('clientes.gestionar') %}<a class="btn btn--sm btn--fantasma" title="Editar" href="{{ url_for('clientes.editar', cliente_id=c.id) }}">{{ icon('edit') }}</a>{% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table></div>
+    {{ paginacion(pagina) }}
+    {% endif %}
+</div>
+{% endblock %}

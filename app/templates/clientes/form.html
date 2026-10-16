@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import icon, campo, select, csrf %}
+{% block titulo %}{{ 'Editar cliente' if editando else 'Nuevo cliente' }}{% endblock %}
+{% block contenido %}
+<div class="miga"><a href="{{ url_for('clientes.index') }}">Clientes</a> / {{ 'Editar' if editando else 'Nuevo' }}</div>
+<div class="encabezado"><h1>{{ c.razon_social if editando else 'Nuevo cliente' }}</h1></div>
+<form method="post" class="card" novalidate>
+    {{ csrf() }}
+    <div class="card__cuerpo">
+        <fieldset class="seccion"><legend>Datos principales</legend>
+            <div class="form-grid">
+                {{ campo("razon_social", "Nombre / razón social", c.razon_social, errores=errores, requerido=True, col=6, attrs='maxlength="150"') }}
+                {{ select("tipo", "Tipo de cliente", opciones('tipo_cliente'), c.tipo, errores=errores, requerido=True, col=3, vacio=None) }}
+                {{ select("condicion_iva", "Condición IVA", opciones('condicion_iva'), c.condicion_iva, errores=errores, col=3, vacio=None) }}
+                {{ select("documento_tipo", "Tipo de documento", [('DNI','DNI'),('CUIT','CUIT'),('CUIL','CUIL'),('OTRO','Otro')], c.documento_tipo, errores=errores, col=3, vacio=None) }}
+                {{ campo("documento", "Número", c.documento, errores=errores, col=3, placeholder="Sin guiones", attrs='maxlength="13" inputmode="numeric"') }}
+                <div class="campo col-6" style="align-self:end"><label class="check"><input type="checkbox" name="activo" value="1" {{ 'checked' if c.activo in (1, '1', True) }}> Cliente activo</label></div>
+            </div>
+        </fieldset>
+        <fieldset class="seccion"><legend>Contacto</legend>
+            <div class="form-grid">
+                {{ campo("telefono", "Teléfono", c.telefono, errores=errores, col=4, attrs='maxlength="40" inputmode="tel"') }}
+                {{ campo("whatsapp", "WhatsApp", c.whatsapp, errores=errores, col=4, attrs='maxlength="40" inputmode="tel"') }}
+                {{ campo("email", "Email", c.email, tipo="email", errores=errores, col=4) }}
+            </div>
+        </fieldset>
+        <fieldset class="seccion"><legend>Ubicación para entregas</legend>
+            <div class="form-grid">
+                {{ campo("direccion", "Dirección", c.direccion, errores=errores, col=6, attrs='maxlength="200"') }}
+                {{ campo("localidad", "Localidad", c.localidad, errores=errores, col=3, attrs='maxlength="100"') }}
+                {{ select("zona_id", "Zona de entrega", zonas, c.zona_id, errores=errores, col=3, vacio="Sin zona") }}
+                {{ campo("referencia_ubicacion", "Referencia de ubicación", c.referencia_ubicacion, errores=errores, col=12, placeholder="Ej.: portón verde, frente a la escuela, entrar por calle de tierra…", attrs='maxlength="255"') }}
+            </div>
+        </fieldset>
+        <fieldset class="seccion"><legend>Cuenta corriente y notas</legend>
+            <div class="form-grid">
+                {% if current_user.puede('cuentas.gestionar') or not editando %}
+                {{ campo("limite_credito", "Límite de crédito", c.limite_credito, tipo="number", errores=errores, col=4, attrs='step="0.01" min="0"', ayuda="0 = sin límite") }}
+                {% endif %}
+                {{ campo("observaciones", "Observaciones", c.observaciones, tipo="textarea", errores=errores, col=12) }}
+            </div>
+        </fieldset>
+    </div>
+    <div class="card__pie form-acciones mt-0">
+        <a class="btn" href="{{ url_for('clientes.ver', cliente_id=c.id) if editando else url_for('clientes.index') }}">Cancelar</a>
+        <button class="btn btn--primario">{{ icon('check') }} Guardar</button>
+    </div>
+</form>
+{% endblock %}

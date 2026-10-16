@@ -1,0 +1,64 @@
+{# Columna principal compartida por venta / presupuesto / pedido.
+   Variables: d (datos), items, cliente, zonas, tipos_vehiculo, modo ('venta'|'presupuesto'|'pedido') #}
+{% from "partials/macros.html" import icon %}
+<script type="application/json" id="datos-doc">{{ {"items": items, "cliente": cliente, "modo": modo}|tojson }}</script>
+
+<div class="card">
+    <div class="card__cab"><h3>Cliente</h3>
+        {% if current_user.puede('clientes.gestionar') %}<a class="btn btn--sm" href="{{ url_for('clientes.nuevo', volver=modo) }}">{{ icon('plus') }} Cliente nuevo</a>{% endif %}
+    </div>
+    <div class="card__cuerpo">
+        <input type="hidden" name="cliente_id" id="cliente_id" value="{{ d.cliente_id or '' }}">
+        <div id="cliente-sel" class="autocomp__sel hidden">
+            <div>
+                <div class="fw-600" id="cliente-nombre"></div>
+                <div class="text-sm muted" id="cliente-detalle"></div>
+                <div class="text-sm" id="cliente-saldo"></div>
+            </div>
+            <button type="button" class="btn btn--fantasma btn--sm" id="cliente-quitar">{{ icon('x') }} Cambiar</button>
+        </div>
+        <input type="text" class="input" id="cliente-buscar" placeholder="Buscar cliente por nombre, DNI/CUIT o teléfono…">
+        {% if errores.cliente_id %}<div class="campo__error">{{ errores.cliente_id }}</div>{% endif %}
+    </div>
+</div>
+
+<div class="card">
+    <div class="card__cab"><h3>Materiales</h3><button type="button" class="btn btn--sm btn--oscuro" id="btn-agregar">{{ icon('plus') }} Agregar material</button></div>
+    <div class="tabla-scroll">
+        <table class="tabla items">
+            <thead><tr><th>Material</th><th style="width:150px">Unidad</th><th style="width:110px" class="right">Cantidad</th><th style="width:140px" class="right">Precio unit.</th><th style="width:90px" class="right">Desc. %</th><th style="width:130px" class="right">Subtotal</th><th></th></tr></thead>
+            <tbody id="items"></tbody>
+        </table>
+    </div>
+    <div class="card__cuerpo hidden" id="items-vacio"><div class="muted center">Agregá los materiales con el botón <strong>Agregar material</strong>.</div></div>
+</div>
+
+<div class="card">
+    <div class="card__cab"><h3>Entrega</h3></div>
+    <div class="card__cuerpo">
+        <div class="segmentado mb-2">
+            <input type="radio" id="te_retiro" name="tipo_entrega" value="retiro" {{ 'checked' if d.tipo_entrega != 'envio' }}><label for="te_retiro">{{ icon('box') }} Retira en galpón</label>
+            <input type="radio" id="te_envio" name="tipo_entrega" value="envio" {{ 'checked' if d.tipo_entrega == 'envio' }}><label for="te_envio">{{ icon('truck') }} Envío a domicilio</label>
+        </div>
+        <div id="bloque-envio" class="form-grid {{ 'hidden' if d.tipo_entrega != 'envio' }}">
+            <div class="campo col-8"><label for="direccion_entrega">Dirección de entrega</label>
+                <input class="input" id="direccion_entrega" name="direccion_entrega" value="{{ d.direccion_entrega or '' }}" maxlength="200"></div>
+            <div class="campo col-4"><label for="zona_id">Zona</label>
+                <select class="input" id="zona_id" name="zona_id"><option value="">Seleccionar…</option>
+                    {% for z in zonas %}<option value="{{ z.id }}" data-km="{{ z.distancia_km }}" {{ 'selected' if d.zona_id|string == z.id|string }}>{{ z.nombre }}</option>{% endfor %}
+                </select></div>
+            <div class="campo col-3"><label for="distancia">Distancia (km)</label><input class="input num" type="number" id="distancia" step="0.1" min="0" placeholder="de la zona"></div>
+            <div class="campo col-4"><label for="tipo_vehiculo">Tipo de vehículo</label>
+                <select class="input" id="tipo_vehiculo"><option value="">Sin recargo</option>
+                    {% for t in tipos_vehiculo %}<option value="{{ t.id }}">{{ t.nombre }}</option>{% endfor %}
+                </select></div>
+            <div class="col-5" style="align-self:end"><button type="button" class="btn btn--bloque" id="btn-cotizar">{{ icon('route') }} Calcular flete</button></div>
+            <div class="col-12 text-sm muted" id="flete-detalle"></div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card__cab"><h3>Observaciones</h3></div>
+    <div class="card__cuerpo"><textarea class="input" name="observaciones" maxlength="2000" placeholder="Indicaciones para la carga, acceso al lugar, etc.">{{ d.observaciones or '' }}</textarea></div>
+</div>

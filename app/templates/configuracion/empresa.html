@@ -1,0 +1,32 @@
+{% extends "configuracion/_layout.html" %}
+{% from "partials/macros.html" import icon, campo, select, csrf %}
+{% block seccion %}
+<form method="post" class="card" novalidate>
+    {{ csrf() }}
+    <div class="card__cuerpo">
+        <fieldset class="seccion"><legend>Datos de la empresa (aparecen en presupuestos y comprobantes)</legend>
+            <div class="form-grid">
+                {{ campo("empresa_nombre", "Nombre comercial", cfg.empresa_nombre, errores=errores, col=6) }}
+                {{ campo("empresa_razon_social", "Razón social", cfg.empresa_razon_social, errores=errores, col=6) }}
+                {{ campo("empresa_cuit", "CUIT", cfg.empresa_cuit, errores=errores, col=4, attrs='inputmode="numeric" maxlength="13"') }}
+                {{ select("empresa_condicion_iva", "Condición frente al IVA", opciones('condicion_iva'), cfg.empresa_condicion_iva, errores=errores, col=4, vacio=None) }}
+                {{ campo("empresa_inicio_actividades", "Inicio de actividades", cfg.empresa_inicio_actividades, tipo="date", errores=errores, col=4) }}
+                {{ campo("empresa_direccion", "Dirección del galpón", cfg.empresa_direccion, errores=errores, col=8) }}
+                {{ campo("empresa_localidad", "Localidad", cfg.empresa_localidad, errores=errores, col=4) }}
+                {{ campo("empresa_telefono", "Teléfono", cfg.empresa_telefono, errores=errores, col=4) }}
+                {{ campo("empresa_whatsapp", "WhatsApp", cfg.empresa_whatsapp, errores=errores, col=4) }}
+                {{ campo("empresa_email", "Email", cfg.empresa_email, tipo="email", errores=errores, col=4) }}
+            </div>
+        </fieldset>
+        <fieldset class="seccion"><legend>Reglas del sistema</legend>
+            <div class="form-grid">
+                {{ campo("presupuesto_validez_dias", "Validez de presupuestos (días)", cfg.presupuesto_validez_dias, tipo="number", errores=errores, col=4, attrs='min="1" max="365"') }}
+                {{ campo("alerta_licencia_dias", "Avisar vencimiento de licencias (días antes)", cfg.alerta_licencia_dias, tipo="number", errores=errores, col=4, attrs='min="1" max="365"') }}
+                <div class="campo col-4" style="align-self:end"><label class="check"><input type="checkbox" name="permitir_stock_negativo" value="1" {{ 'checked' if cfg.permitir_stock_negativo in ('1', 1) }}> Permitir vender sin stock suficiente</label></div>
+                {{ campo("presupuesto_leyenda", "Leyenda al pie de los presupuestos", cfg.presupuesto_leyenda, tipo="textarea", errores=errores, col=12) }}
+            </div>
+        </fieldset>
+    </div>
+    <div class="card__pie right"><button class="btn btn--primario">{{ icon('check') }} Guardar</button></div>
+</form>
+{% endblock %}

@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import icon, paginacion, vacio %}
+{% block titulo %}Historial de cajas{% endblock %}
+{% block contenido %}
+<div class="miga"><a href="{{ url_for('caja.index') }}">Caja</a> / Historial</div>
+<div class="encabezado"><div><h1>Historial de cierres</h1></div></div>
+<form class="filtros" method="get">
+    <div class="filtros__grid">
+        <div class="campo"><label>Desde</label><input class="input" type="date" name="desde" value="{{ request.args.desde or '' }}"></div>
+        <div class="campo"><label>Hasta</label><input class="input" type="date" name="hasta" value="{{ request.args.hasta or '' }}"></div>
+        <div class="filtros__acciones"><button class="btn btn--oscuro">{{ icon('filter') }} Filtrar</button></div>
+    </div>
+</form>
+<div class="card">
+    {% if not pagina.items %}{{ vacio("Sin cierres", "Todavía no hay cajas cerradas.", "cash") }}
+    {% else %}
+    <div class="tabla-scroll"><table class="tabla tabla-responsive">
+        <thead><tr><th>Caja</th><th>Apertura</th><th>Cierre</th><th class="right">Inicial</th><th class="right">Transf.</th><th class="right">Tarjetas</th><th class="right">Esperado</th><th class="right">Declarado</th><th class="right">Diferencia</th></tr></thead>
+        <tbody>{% for c in pagina.items %}
+        <tr>
+            <td data-etq="Caja"><a class="fw-600" href="{{ url_for('caja.ver', caja_id=c.id) }}">#{{ c.id }}</a></td>
+            <td data-etq="Apertura">{{ c.fecha_apertura|fecha_hora }}<br><small class="muted">{{ c.usuario_apertura }}</small></td>
+            <td data-etq="Cierre">{{ c.fecha_cierre|fecha_hora }}<br><small class="muted">{{ c.usuario_cierre }}</small></td>
+            <td data-etq="Inicial" class="right num">{{ c.monto_inicial|moneda }}</td>
+            <td data-etq="Transf." class="right num">{{ c.total_transferencias|moneda }}</td>
+            <td data-etq="Tarjetas" class="right num">{{ c.total_tarjetas|moneda }}</td>
+            <td data-etq="Esperado" class="right num">{{ c.saldo_esperado|moneda }}</td>
+            <td data-etq="Declarado" class="right num">{{ c.saldo_declarado|moneda }}</td>
+            <td data-etq="Diferencia" class="right num fw-600 {{ 'text-rojo' if c.diferencia < 0 else ('text-verde' if c.diferencia > 0) }}">{{ c.diferencia|moneda }}</td>
+        </tr>{% endfor %}</tbody>
+    </table></div>
+    {{ paginacion(pagina) }}
+    {% endif %}
+</div>
+{% endblock %}

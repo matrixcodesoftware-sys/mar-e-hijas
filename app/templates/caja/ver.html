@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import icon %}
+{% block titulo %}Caja #{{ caja.id }}{% endblock %}
+{% block contenido %}
+<div class="miga no-imprimir"><a href="{{ url_for('caja.index') }}">Caja</a> / <a href="{{ url_for('caja.historial') }}">Historial</a> / #{{ caja.id }}</div>
+<div class="encabezado">
+    <div><h1>Caja #{{ caja.id }} {% if caja.estado == 'abierta' %}<span class="badge badge--verde">Abierta</span>{% else %}<span class="badge badge--gris">Cerrada</span>{% endif %}</h1>
+        <div class="encabezado__sub">Apertura {{ caja.fecha_apertura|fecha_hora }} ({{ caja.usuario_apertura }}){% if caja.fecha_cierre %} · Cierre {{ caja.fecha_cierre|fecha_hora }} ({{ caja.usuario_cierre }}){% endif %}</div></div>
+    <div class="encabezado__acciones no-imprimir"><button class="btn" data-imprimir>{{ icon('print') }} Imprimir arqueo</button></div>
+</div>
+{% include "caja/_resumen.html" %}
+{% if caja.observaciones %}<div class="aviso aviso--azul mb-2">{{ icon('alert') }}<span>{{ caja.observaciones }}</span></div>{% endif %}
+<div class="card"><div class="card__cab"><h3>Movimientos</h3></div>{% include "caja/_movimientos.html" %}</div>
+{% endblock %}

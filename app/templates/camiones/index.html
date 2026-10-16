@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import icon, badge, paginacion, vacio %}
+{% block titulo %}Camiones{% endblock %}
+{% block contenido %}
+<div class="encabezado">
+    <div><h1>Camiones y vehículos</h1><div class="encabezado__sub">Flota propia, capacidad de carga y choferes asignados</div></div>
+    <div class="encabezado__acciones">{% if current_user.puede('vehiculos.gestionar') %}<a class="btn btn--primario" href="{{ url_for('vehiculos.nuevo') }}">{{ icon('plus') }} Nuevo vehículo</a>{% endif %}</div>
+</div>
+<form class="filtros" method="get">
+    <div class="filtros__grid">
+        <div class="campo"><label>Patente / marca</label><input class="input" name="q" value="{{ request.args.q or '' }}"></div>
+        <div class="campo"><label>Tipo</label><select class="input" name="tipo_id" data-auto-submit><option value="">Todos</option>
+            {% for id, n in tipos %}<option value="{{ id }}" {{ 'selected' if request.args.tipo_id == id|string }}>{{ n }}</option>{% endfor %}</select></div>
+        <div class="campo"><label>Estado</label><select class="input" name="estado" data-auto-submit><option value="">Todos</option>
+            {% for k, t in opciones('estado_vehiculo') %}<option value="{{ k }}" {{ 'selected' if request.args.estado == k }}>{{ t }}</option>{% endfor %}</select></div>
+        <div class="filtros__acciones"><button class="btn btn--oscuro">{{ icon('search') }} Filtrar</button></div>
+    </div>
+</form>
+<div class="card">
+    {% if not pagina.items %}{{ vacio("Sin vehículos", "Cargá los camiones del galpón para asignarlos a entregas.", "truck") }}
+    {% else %}
+    <div class="tabla-scroll"><table class="tabla tabla-responsive">
+        <thead><tr><th>Patente</th><th>Tipo</th><th>Marca / modelo</th><th class="right">Capacidad</th><th>Chofer asignado</th><th>Estado</th><th></th></tr></thead>
+        <tbody>{% for v in pagina.items %}
+        <tr>
+            <td data-etq="Patente"><a class="fw-600 num" href="{{ url_for('vehiculos.ver', vehiculo_id=v.id) }}">{{ v.patente }}</a></td>
+            <td data-etq="Tipo">{{ v.tipo }}</td>
+            <td data-etq="Marca">{{ v.marca or '' }} {{ v.modelo or '' }}{% if v.anio %} ({{ v.anio }}){% endif %}</td>
+            <td data-etq="Capacidad" class="right num fw-600">{{ v.capacidad|cantidad }} {{ v.unidad_abrev }}</td>
+            <td data-etq="Chofer">{{ v.chofer or '—' }}</td>
+            <td data-etq="Estado">{{ badge(v.estado, 'estado_vehiculo') }}</td>
+            <td class="acciones">{% if current_user.puede('vehiculos.gestionar') %}<a class="btn btn--sm btn--fantasma" href="{{ url_for('vehiculos.editar', vehiculo_id=v.id) }}">{{ icon('edit') }}</a>{% endif %}</td>
+        </tr>{% endfor %}</tbody>
+    </table></div>
+    {{ paginacion(pagina) }}
+    {% endif %}
+</div>
+{% endblock %}

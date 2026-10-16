@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import icon, badge_activo, csrf %}
+{% block titulo %}{{ p.razon_social }}{% endblock %}
+{% block contenido %}
+<div class="miga"><a href="{{ url_for('proveedores.index') }}">Proveedores</a> / Ficha</div>
+<div class="encabezado">
+    <div><h1>{{ p.razon_social }}</h1><div class="encabezado__sub">{{ badge_activo(p.activo) }}{% if p.cuit %} · CUIT {{ p.cuit }}{% endif %}{% if p.contacto %} · {{ p.contacto }}{% endif %}</div></div>
+    <div class="encabezado__acciones">
+        {% if current_user.puede('stock.gestionar') %}<a class="btn" href="{{ url_for('stock.entrada') }}">{{ icon('in') }} Registrar compra / entrada</a>{% endif %}
+        {% if current_user.puede('proveedores.gestionar') %}
+        <button class="btn btn--primario" data-abrir-modal="modal-pago">{{ icon('dollar') }} Registrar pago</button>
+        <a class="btn" href="{{ url_for('proveedores.editar', proveedor_id=p.id) }}">{{ icon('edit') }} Editar</a>
+        {% endif %}
+    </div>
+</div>
+<div class="kpis">
+    <div class="kpi kpi--acento {{ 'kpi--alerta' if p.saldo_cuenta > 0 }}"><div class="kpi__etq">Deuda con el proveedor</div><div class="kpi__valor">{{ p.saldo_cuenta|moneda }}</div></div>
+    <div class="kpi"><div class="kpi__etq">Materiales suministrados</div><div class="kpi__valor">{{ materiales|length }}</div></div>
+    <div class="kpi"><div class="kpi__etq">Contacto</div><div class="kpi__valor" style="font-size:1.1rem">{{ p.telefono or '—' }}</div><div class="kpi__det">{{ p.email or '' }}</div></div>
+</div>
+<div class="grid grid-2">
+    <div class="card">
+        <div class="card__cab"><h3>Cuenta del proveedor</h3></div>
+        {% if movimientos %}<div class="tabla-scroll"><table class="tabla tabla-responsive tabla--compacta">
+            <thead><tr><th>Fecha</th><th>Concepto</th><th class="right">Cargo</th><th class="right">Pago</th><th class="right">Saldo</th></tr></thead>
+            <tbody>{% for m in movimientos %}
+            <tr><td data-etq="Fecha">{{ m.fecha|fecha }}</td><td data-etq="Concepto">{{ m.concepto }}</td>
+                <td data-etq="Cargo" class="right num">{{ m.cargo|moneda if m.cargo else '' }}</td>
+                <td data-etq="Pago" class="right num text-verde">{{ m.abono|moneda if m.abono else '' }}</td>
+                <td data-etq="Saldo" class="right num fw-600">{{ m.saldo_resultante|moneda }}</td></tr>
+            {% endfor %}</tbody></table></div>
+        {% else %}<div class="card__cuerpo muted">Sin movimientos.</div>{% endif %}
+    </div>
+    <div class="card">
+        <div class="card__cab"><h3>Materiales suministrados</h3></div>
+        {% if materiales %}<div class="tabla-scroll"><table class="tabla tabla-responsive tabla--compacta">
+            <thead><tr><th>Material</th><th class="right">Entradas</th><th class="right">Cantidad</th><th class="right">Costo</th><th>Última</th></tr></thead>
+            <tbody>{% for m in materiales %}
+            <tr><td data-etq="Material"><a href="{{ url_for('materiales.ver', material_id=m.id) }}">{{ m.nombre }}</a></td><td data-etq="Entradas" class="right num">{{ m.entradas }}</td>
+                <td data-etq="Cantidad" class="right num">{{ m.cantidad|cantidad }} {{ m.abreviatura }}</td><td data-etq="Costo" class="right num">{{ (m.costo or 0)|moneda }}</td><td data-etq="Última">{{ m.ultima|fecha }}</td></tr>
+            {% endfor %}</tbody></table></div>
+        {% else %}<div class="card__cuerpo muted">Todavía no hay entradas de este proveedor.</div>{% endif %}
+    </div>
+    <div class="card">
+        <div class="card__cab"><h3>Últimas compras (entradas)</h3><a class="btn btn--sm" href="{{ url_for('stock.movimientos', proveedor_id=p.id, tipo='entrada', buscar=1) }}">Ver todas</a></div>
+        {% if compras %}<div class="tabla-scroll"><table class="tabla tabla-responsive tabla--compacta">
+            <thead><tr><th>Fecha</th><th>Material</th><th class="right">Cantidad</th><th>Remito</th><th class="right">Costo</th></tr></thead>
+            <tbody>{% for c in compras %}
+            <tr><td data-etq="Fecha">{{ c.fecha|fecha }}</td><td data-etq="Material">{{ c.material }}</td><td data-etq="Cantidad" class="right num">{{ c.cantidad_unidad|cantidad }} {{ c.unidad }}</td>
+                <td data-etq="Remito">{{ c.remito_numero or '—' }}</td><td data-etq="Costo" class="right num">{{ (c.costo_total or 0)|moneda }}</td></tr>
+            {% endfor %}</tbody></table></div>
+        {% else %}<div class="card__cuerpo muted">Sin compras.</div>{% endif %}
+    </div>
+    <div class="card">
+        <div class="card__cab"><h3>Pagos realizados</h3></div>
+        {% if pagos %}<div class="tabla-scroll"><table class="tabla tabla-responsive tabla--compacta">
+            <thead><tr><th>Fecha</th><th>Método</th><th>Referencia</th><th class="right">Monto</th></tr></thead>
+            <tbody>{% for pg in pagos %}
+            <tr><td data-etq="Fecha">{{ pg.fecha|fecha }}</td><td data-etq="Método">{{ pg.metodo }}</td><td data-etq="Ref.">{{ pg.referencia or '—' }}</td><td data-etq="Monto" class="right num">{{ pg.monto|moneda }}</td></tr>
+            {% endfor %}</tbody></table></div>
+        {% else %}<div class="card__cuerpo muted">Sin pagos.</div>{% endif %}
+    </div>
+</div>
+
+{% if current_user.puede('proveedores.gestionar') %}
+<dialog class="modal" id="modal-pago">
+    <form method="post" action="{{ url_for('proveedores.pagar', proveedor_id=p.id) }}">
+        {{ csrf() }}
+        <div class="modal__cab"><h3>Pago a {{ p.razon_social }}</h3><button type="button" class="btn btn--fantasma btn-icono" data-cerrar-modal>{{ icon('x') }}</button></div>
+        <div class="modal__cuerpo form-grid">
+            <div class="campo col-6"><label>Monto <span class="req">*</span></label><input class="input num" type="number" name="monto" step="0.01" min="0.01" required value="{{ p.saldo_cuenta if p.saldo_cuenta > 0 else '' }}"></div>
+            <div class="campo col-6"><label>Método <span class="req">*</span></label><select class="input" name="metodo_pago_id" required>{% for mp in metodos %}<option value="{{ mp.id }}">{{ mp.nombre }}</option>{% endfor %}</select></div>
+            <div class="campo col-12"><label>Referencia</label><input class="input" name="referencia" maxlength="100"></div>
+            <div class="campo col-12"><label>Observaciones</label><input class="input" name="observaciones" maxlength="255"></div>
+        </div>
+        <div class="modal__pie"><button type="button" class="btn" data-cerrar-modal>Cancelar</button><button class="btn btn--primario">{{ icon('check') }} Registrar pago</button></div>
+    </form>
+</dialog>
+{% endif %}
+{% endblock %}

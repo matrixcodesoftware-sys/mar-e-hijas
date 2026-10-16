@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import icon, badge, csrf, form_post %}
+{% block titulo %}Presupuesto {{ p.id|nro('PR') }}{% endblock %}
+{% block contenido %}
+<div class="miga"><a href="{{ url_for('presupuestos.index') }}">Presupuestos</a> / {{ p.id|nro('PR') }}</div>
+<div class="encabezado">
+    <div><h1>Presupuesto {{ p.id|nro('PR') }}</h1>
+        <div class="encabezado__sub">{{ p.fecha|fecha }} · vence {{ p.fecha_vencimiento|fecha }} · {{ badge(p.estado, 'estado_presupuesto') }}</div></div>
+    <div class="encabezado__acciones">
+        <a class="btn" href="{{ url_for('presupuestos.pdf', presupuesto_id=p.id) }}" target="_blank">{{ icon('pdf') }} Ver PDF</a>
+        <a class="btn" href="{{ url_for('presupuestos.pdf', presupuesto_id=p.id, descargar=1) }}">{{ icon('download') }} Descargar</a>
+        {% set convertible = not p.venta_id and not p.pedido_id and p.estado not in ('rechazado',) %}
+        {% if convertible and current_user.puede('presupuestos.gestionar') and p.estado in ('pendiente','enviado','vencido') %}
+        <a class="btn" href="{{ url_for('presupuestos.editar', presupuesto_id=p.id) }}">{{ icon('edit') }} Editar</a>{% endif %}
+        {% if convertible and current_user.puede('pedidos.gestionar') %}
+        {{ form_post(url_for('presupuestos.a_pedido', presupuesto_id=p.id), 'Convertir en pedido', 'btn', confirmar='Se creará un pedido con estos materiales. ¿Continuar?', icono='clipboard') }}{% endif %}
+        {% if convertible and current_user.puede('ventas.crear') %}
+        <a class="btn btn--primario" href="{{ url_for('ventas.nueva', presupuesto=p.id) }}">{{ icon('cart') }} Convertir presupuesto en venta</a>{% endif %}
+    </div>
+</div>
+{% if p.venta_id %}<div class="aviso aviso--verde mb-2">{{ icon('check') }}<span>Convertido en la venta <a href="{{ url_for('ventas.ver', venta_id=p.venta_id) }}">{{ p.venta_id|nro('V') }}</a>.</span></div>{% endif %}
+{% if p.pedido_id %}<div class="aviso aviso--verde mb-2">{{ icon('check') }}<span>Convertido en el pedido <a href="{{ url_for('pedidos.ver', pedido_id=p.pedido_id) }}">{{ p.pedido_id|nro('P') }}</a>.</span></div>{% endif %}
+{% if p.estado == 'vencido' and not p.venta_id and not p.pedido_id %}<div class="aviso aviso--ambar mb-2">{{ icon('alert') }}<span>Presupuesto vencido: revisá los precios antes de convertirlo (al editar se actualizan).</span></div>{% endif %}
+
+<div class="grid grid-lateral">
+    <div class="card">
+        <div class="card__cab"><h3>Materiales</h3></div>
+        <div class="tabla-scroll"><table class="tabla tabla-responsive">
+            <thead><tr><th>Material</th><th class="right">Cantidad</th><th class="right">Precio unit.</th><th class="right">Desc.</th><th class="right">Subtotal</th></tr></thead>
+            <tbody>{% for d in detalle %}
+            <tr><td data-etq="Material" class="fw-600">{{ d.material }}</td><td data-etq="Cantidad" class="right num">{{ d.cantidad|cantidad }} {{ d.unidad }}</td>
+                <td data-etq="Precio" class="right num">{{ d.precio_unitario|moneda }}</td><td data-etq="Desc." class="right num">{{ (d.descuento_pct|cantidad ~ ' %') if d.descuento_pct else '—' }}</td>
+                <td data-etq="Subtotal" class="right num fw-600">{{ d.subtotal|moneda }}</td></tr>{% endfor %}</tbody>
+        </table></div>
+        <div class="card__cuerpo"><div class="totales">
+            <div><span>Subtotal</span><span class="num">{{ p.subtotal|moneda }}</span></div>
+            {% if p.descuento_general %}<div><span>Descuento</span><span class="num">− {{ p.descuento_general|moneda }}</span></div>{% endif %}
+            {% if p.tipo_entrega == 'envio' %}<div><span>Flete{% if p.zona %} ({{ p.zona }}){% endif %}</span><span class="num">{{ p.costo_envio|moneda }}</span></div>{% endif %}
+            <div class="total"><span>TOTAL</span><span class="num">{{ p.total|moneda }}</span></div>
+        </div></div>
+    </div>
+    <div>
+        <div class="card">
+            <div class="card__cab"><h3>Cliente</h3></div>
+            <div class="card__cuerpo">
+                <div class="fw-600"><a href="{{ url_for('clientes.ver', cliente_id=p.cliente_id) }}">{{ p.cliente }}</a></div>
+                <div class="text-sm muted">{{ p.cliente_telefono or '' }} {{ p.cliente_email or '' }}</div>
+                <div class="mt-1">{{ p.tipo_entrega|etiqueta('tipo_entrega') }}{% if p.direccion_entrega %}: {{ p.direccion_entrega }}{% endif %}</div>
+                {% if p.cliente_whatsapp %}<a class="btn btn--sm mt-2" target="_blank" rel="noopener" href="https://wa.me/{{ p.cliente_whatsapp|replace(' ','')|replace('-','')|replace('+','') }}?text={{ ('Hola ' ~ p.cliente ~ ', te enviamos el presupuesto ' ~ (p.id|nro('PR')) ~ ' de MAR E HIJAS por ' ~ (p.total|moneda) ~ '.')|urlencode }}">{{ icon('message') }} Enviar por WhatsApp</a>{% endif %}
+            </div>
+        </div>
+        {% if current_user.puede('presupuestos.gestionar') and not p.venta_id and not p.pedido_id %}
+        <div class="card">
+            <div class="card__cab"><h3>Estado</h3></div>
+            <div class="card__cuerpo flex flex-wrap gap-1">
+                {% for est, txt in [('enviado','Marcar enviado'),('aceptado','Aceptado'),('rechazado','Rechazado'),('pendiente','Volver a pendiente')] if est != p.estado %}
+                {{ form_post(url_for('presupuestos.estado', presupuesto_id=p.id), txt, 'btn btn--sm', extra={'estado': est}) }}
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        <div class="card"><div class="card__cuerpo"><dl class="dl">
+            <dt>Atendió</dt><dd>{{ p.usuario }}</dd>
+            <dt>Observaciones</dt><dd>{{ p.observaciones or '—' }}</dd>
+        </dl></div></div>
+    </div>
+</div>
+{% endblock %}

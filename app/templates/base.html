@@ -1,0 +1,104 @@
+{% from "partials/macros.html" import icon %}<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="theme-color" content="#1f262b">
+    <title>{% block titulo %}{% endblock %} · {{ APP_NOMBRE }}</title>
+    <link rel="icon" href="{{ url_for('static', filename='img/logo.svg') }}" type="image/svg+xml">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+    {% block head %}{% endblock %}
+</head>
+<body data-icons="{{ url_for('static', filename='img/icons.svg') }}">
+<div class="app">
+    <aside class="sidebar" id="sidebar" aria-label="Menú principal">
+        <a class="sidebar__marca" href="{{ url_for('auth.raiz') }}">
+            <img src="{{ url_for('static', filename='img/logo.svg') }}" alt="">
+            <div>
+                <div class="sidebar__nombre">{{ APP_NOMBRE }}</div>
+                <div class="sidebar__sub">{{ APP_SUBTITULO }}</div>
+            </div>
+        </a>
+        <nav class="sidebar__nav">
+            {% for item in menu_lateral %}
+                {% if item is none %}<div class="sidebar__sep"></div>
+                {% else %}<a href="{{ url_for(item.endpoint) }}" class="{{ 'activo' if item.activo }}">{{ icon(item.icono) }}<span>{{ item.etiqueta }}</span></a>{% endif %}
+            {% endfor %}
+        </nav>
+        <div class="sidebar__pie">Venta y distribución de áridos</div>
+    </aside>
+    <div class="velo" id="velo"></div>
+
+    <div class="principal">
+        <header class="topbar">
+            <button class="icon-btn topbar__menu" id="btn-menu" aria-label="Abrir menú">{{ icon('menu') }}</button>
+            <div class="topbar__titulo">{% block topbar_titulo %}{{ self.titulo() }}{% endblock %}</div>
+            <div class="topbar__acciones">
+                {% if current_user.puede('caja.ver') or current_user.puede('caja.operar') or current_user.puede('ventas.crear') %}
+                <a href="{{ url_for('caja.index') if (current_user.puede('caja.ver') or current_user.puede('caja.operar')) else '#' }}" class="caja-estado" id="caja-estado" hidden><span class="txt"></span></a>
+                {% endif %}
+                <div class="dropdown" id="dd-notif">
+                    <button class="icon-btn" data-dropdown aria-label="Notificaciones">{{ icon('bell') }}<span class="contador hidden" id="notif-contador"></span></button>
+                    <div class="dropdown__panel notificaciones">
+                        <div class="dropdown__cabecera"><strong>Notificaciones</strong></div>
+                        <div id="notif-lista"><div class="notif-vacia">Cargando…</div></div>
+                    </div>
+                </div>
+                <div class="dropdown" id="dd-usuario">
+                    <button class="usuario-chip" data-dropdown aria-label="Menú de usuario">
+                        <span class="avatar">{{ current_user.iniciales }}</span>
+                        <span class="usuario-chip__txt">
+                            <span class="usuario-chip__nombre">{{ current_user.nombre_completo }}</span><br>
+                            <span class="usuario-chip__rol">{{ current_user.rol_nombre }}</span>
+                        </span>
+                        {{ icon('chev-down') }}
+                    </button>
+                    <div class="dropdown__panel">
+                        <div class="dropdown__cabecera">
+                            <div class="fw-600">{{ current_user.nombre_completo }}</div>
+                            <div class="text-sm muted">@{{ current_user.username }} · {{ current_user.rol_nombre }}</div>
+                        </div>
+                        <a href="{{ url_for('auth.perfil') }}">{{ icon('user') }} Mi perfil</a>
+                        <form method="post" action="{{ url_for('auth.logout') }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit">{{ icon('logout') }} Cerrar sesión</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <div class="flash-zona" id="flash-zona">
+            {% with mensajes = get_flashed_messages(with_categories=true) %}
+                {% for cat, msg in mensajes %}
+                <div class="alerta alerta--{{ cat if cat in ['success','danger','warning','info'] else 'info' }}" role="alert">
+                    <span>{{ msg }}</span>
+                    <button class="alerta__cerrar" aria-label="Cerrar">{{ icon('x') }}</button>
+                </div>
+                {% endfor %}
+            {% endwith %}
+        </div>
+
+        <main class="contenido">
+            {% block contenido %}{% endblock %}
+        </main>
+    </div>
+</div>
+
+<dialog class="modal" id="modal-confirmar">
+    <div class="modal__cab"><h3 id="confirmar-titulo">Confirmar</h3></div>
+    <div class="modal__cuerpo"><p id="confirmar-texto" class="mt-0"></p></div>
+    <div class="modal__pie">
+        <button type="button" class="btn" data-cerrar-modal>Cancelar</button>
+        <button type="button" class="btn btn--primario" id="confirmar-ok">Confirmar</button>
+    </div>
+</dialog>
+
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

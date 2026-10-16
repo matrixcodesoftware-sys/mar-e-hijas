@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import campo, csrf, icon %}
+{% block titulo %}Mi perfil{% endblock %}
+{% block contenido %}
+<div class="encabezado">
+    <div>
+        <h1>Mi perfil</h1>
+        <div class="encabezado__sub">{{ current_user.rol_nombre }} · último acceso {{ u.ultimo_acceso|fecha_hora or "—" }}</div>
+    </div>
+</div>
+<div class="grid grid-2">
+    <form method="post" class="card">
+        {{ csrf() }}<input type="hidden" name="accion" value="datos">
+        <div class="card__cab"><h2>Datos personales</h2></div>
+        <div class="card__cuerpo form-grid">
+            {{ campo("nombre", "Nombre", u.nombre, errores=errores, requerido=True) }}
+            {{ campo("apellido", "Apellido", u.apellido, errores=errores, requerido=True) }}
+            {{ campo("email", "Email", u.email, tipo="email", errores=errores) }}
+            {{ campo("telefono", "Teléfono", u.telefono, errores=errores) }}
+            <div class="campo col-12"><label>Usuario</label><input class="input" value="{{ u.username }}" readonly></div>
+        </div>
+        <div class="card__pie right"><button class="btn btn--primario">{{ icon('check') }} Guardar</button></div>
+    </form>
+    <form method="post" class="card">
+        {{ csrf() }}<input type="hidden" name="accion" value="password">
+        <div class="card__cab"><h2>Cambiar contraseña</h2></div>
+        <div class="card__cuerpo form-grid">
+            {{ campo("password_actual", "Contraseña actual", "", tipo="password", errores=errores, requerido=True, col=12, attrs='autocomplete="current-password"') }}
+            {{ campo("password_nueva", "Nueva contraseña", "", tipo="password", errores=errores, requerido=True, col=12, ayuda="Mínimo 8 caracteres.", attrs='autocomplete="new-password" minlength="8"') }}
+            {{ campo("password_repetir", "Repetir nueva contraseña", "", tipo="password", errores=errores, requerido=True, col=12, attrs='autocomplete="new-password"') }}
+        </div>
+        <div class="card__pie right"><button class="btn btn--oscuro">{{ icon('lock') }} Actualizar contraseña</button></div>
+    </form>
+</div>
+{% endblock %}

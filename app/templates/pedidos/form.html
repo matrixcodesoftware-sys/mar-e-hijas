@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import icon, csrf %}
+{% block titulo %}{{ 'Editar pedido' if p else 'Nuevo pedido' }}{% endblock %}
+{% block contenido %}
+<div class="miga"><a href="{{ url_for('pedidos.index') }}">Pedidos</a> / {{ p.id|nro('P') if p else 'Nuevo' }}</div>
+<div class="encabezado"><div><h1>{{ ('Editar pedido ' ~ (p.id|nro('P'))) if p else 'Nuevo pedido' }}</h1>
+    <div class="encabezado__sub">El stock se descuenta al generar la venta del pedido.</div></div></div>
+<form method="post" id="form-doc" data-modo="pedido" novalidate>
+    {{ csrf() }}
+    <input type="hidden" name="presupuesto_id" value="{{ d.presupuesto_id or '' }}">
+    <div class="grid grid-lateral">
+        <div>
+            {% set modo = 'pedido' %}
+            {% include "partials/documento_form.html" %}
+        </div>
+        <div class="resumen-doc">
+            <div class="card">
+                <div class="card__cab"><h3>Programación</h3></div>
+                <div class="card__cuerpo form-grid">
+                    <div class="campo col-6"><label for="fecha_solicitada">Fecha solicitada <span class="req">*</span></label>
+                        <input class="input" type="date" id="fecha_solicitada" name="fecha_solicitada" value="{{ d.fecha_solicitada|fecha_iso }}" required></div>
+                    <div class="campo col-6"><label for="horario">Horario</label><input class="input" id="horario" name="horario" value="{{ d.horario or '' }}" maxlength="40" placeholder="8 a 12 h"></div>
+                    <div class="campo col-12" data-solo-envio><label for="localidad">Localidad</label><input class="input" id="localidad" name="localidad" value="{{ d.localidad or '' }}" maxlength="100"></div>
+                    <div class="campo col-12" data-solo-envio><label for="referencia">Referencia de ubicación</label><input class="input" id="referencia" name="referencia" value="{{ d.referencia or '' }}" maxlength="255"></div>
+                    <div class="campo col-12" data-solo-envio><label for="vehiculo_id">Camión sugerido</label>
+                        <select class="input" id="vehiculo_id" name="vehiculo_id"><option value="">Sin definir</option>
+                            {% for id, n in vehiculos %}<option value="{{ id }}" {{ 'selected' if d.vehiculo_id|string == id|string }}>{{ n }}</option>{% endfor %}</select></div>
+                    <div class="campo col-12" data-solo-envio><label for="chofer_id">Chofer sugerido</label>
+                        <select class="input" id="chofer_id" name="chofer_id"><option value="">Sin definir</option>
+                            {% for id, n in choferes %}<option value="{{ id }}" {{ 'selected' if d.chofer_id|string == id|string }}>{{ n }}</option>{% endfor %}</select></div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card__cab"><h3>Resumen</h3></div>
+                <div class="card__cuerpo">{% include "partials/resumen_totales.html" %}</div>
+                <div class="card__pie"><button class="btn btn--primario btn--lg btn--bloque" type="submit">{{ icon('check') }} Guardar pedido</button></div>
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/documento.js') }}"></script>{% endblock %}

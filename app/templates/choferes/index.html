@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import icon, badge, paginacion, vacio %}
+{% block titulo %}Choferes{% endblock %}
+{% block contenido %}
+<div class="encabezado">
+    <div><h1>Choferes</h1><div class="encabezado__sub">Licencias, vehículos y acceso a la app de entregas</div></div>
+    <div class="encabezado__acciones">{% if current_user.puede('choferes.gestionar') %}<a class="btn btn--primario" href="{{ url_for('choferes.nuevo') }}">{{ icon('plus') }} Nuevo chofer</a>{% endif %}</div>
+</div>
+<form class="filtros" method="get">
+    <div class="filtros__grid">
+        <div class="campo"><label>Nombre / DNI</label><input class="input" name="q" value="{{ request.args.q or '' }}"></div>
+        <div class="campo"><label>Estado</label><select class="input" name="estado" data-auto-submit><option value="">Todos</option>
+            {% for k, t in opciones('estado_chofer') %}<option value="{{ k }}" {{ 'selected' if request.args.estado == k }}>{{ t }}</option>{% endfor %}</select></div>
+        <div class="filtros__acciones"><button class="btn btn--oscuro">{{ icon('search') }} Filtrar</button></div>
+    </div>
+</form>
+<div class="card">
+    {% if not pagina.items %}{{ vacio("Sin choferes", "Cargá los choferes para asignarles entregas.", "id") }}
+    {% else %}
+    <div class="tabla-scroll"><table class="tabla tabla-responsive">
+        <thead><tr><th>Chofer</th><th>DNI</th><th>Teléfono</th><th>Licencia</th><th>Vehículos</th><th>Usuario app</th><th>Estado</th><th></th></tr></thead>
+        <tbody>{% for c in pagina.items %}
+        <tr>
+            <td data-etq="Chofer"><a class="fw-600" href="{{ url_for('choferes.ver', chofer_id=c.id) }}">{{ c.nombre }} {{ c.apellido }}</a></td>
+            <td data-etq="DNI" class="num">{{ c.dni }}</td>
+            <td data-etq="Teléfono">{% if c.telefono %}<a href="tel:{{ c.telefono }}">{{ c.telefono }}</a>{% else %}—{% endif %}</td>
+            <td data-etq="Licencia">{{ c.licencia_categoria or '' }}
+                {% if c.licencia_vencimiento %}<br>
+                    {% if c.licencia_vencimiento < hoy %}<span class="badge badge--rojo">Vencida {{ c.licencia_vencimiento|fecha }}</span>
+                    {% elif c.licencia_vencimiento <= limite_alerta %}<span class="badge badge--ambar">Vence {{ c.licencia_vencimiento|fecha }}</span>
+                    {% else %}<small class="muted">Vence {{ c.licencia_vencimiento|fecha }}</small>{% endif %}
+                {% endif %}</td>
+            <td data-etq="Vehículos">{{ c.vehiculos or '—' }}</td>
+            <td data-etq="Usuario">{{ ('@' ~ c.username) if c.username else '—' }}</td>
+            <td data-etq="Estado">{{ badge(c.estado, 'estado_chofer') }}</td>
+            <td class="acciones">{% if current_user.puede('choferes.gestionar') %}<a class="btn btn--sm btn--fantasma" href="{{ url_for('choferes.editar', chofer_id=c.id) }}">{{ icon('edit') }}</a>{% endif %}</td>
+        </tr>{% endfor %}</tbody>
+    </table></div>
+    {{ paginacion(pagina) }}
+    {% endif %}
+</div>
+{% endblock %}

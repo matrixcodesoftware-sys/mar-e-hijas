@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import icon, campo, csrf %}
+{% block titulo %}{{ 'Editar proveedor' if editando else 'Nuevo proveedor' }}{% endblock %}
+{% block contenido %}
+<div class="miga"><a href="{{ url_for('proveedores.index') }}">Proveedores</a> / {{ 'Editar' if editando else 'Nuevo' }}</div>
+<div class="encabezado"><h1>{{ p.razon_social if editando else 'Nuevo proveedor' }}</h1></div>
+<form method="post" class="card" novalidate>
+    {{ csrf() }}
+    <div class="card__cuerpo form-grid">
+        {{ campo("razon_social", "Razón social", p.razon_social, errores=errores, requerido=True, col=8, attrs='maxlength="150"') }}
+        {{ campo("cuit", "CUIT", p.cuit, errores=errores, col=4, placeholder="11 dígitos", attrs='maxlength="13" inputmode="numeric"') }}
+        {{ campo("contacto", "Persona de contacto", p.contacto, errores=errores, col=4, attrs='maxlength="120"') }}
+        {{ campo("telefono", "Teléfono", p.telefono, errores=errores, col=4, attrs='maxlength="40"') }}
+        {{ campo("email", "Email", p.email, tipo="email", errores=errores, col=4) }}
+        {{ campo("direccion", "Dirección", p.direccion, errores=errores, col=8, attrs='maxlength="200"') }}
+        {{ campo("localidad", "Localidad", p.localidad, errores=errores, col=4, attrs='maxlength="100"') }}
+        {{ campo("observaciones", "Observaciones", p.observaciones, tipo="textarea", errores=errores, col=12) }}
+        <div class="campo col-12"><label class="check"><input type="checkbox" name="activo" value="1" {{ 'checked' if p.activo in (1, '1', True) }}> Proveedor activo</label></div>
+    </div>
+    <div class="card__pie form-acciones mt-0">
+        <a class="btn" href="{{ url_for('proveedores.ver', proveedor_id=p.id) if editando else url_for('proveedores.index') }}">Cancelar</a>
+        <button class="btn btn--primario">{{ icon('check') }} Guardar</button>
+    </div>
+</form>
+{% endblock %}

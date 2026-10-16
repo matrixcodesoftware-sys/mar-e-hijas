@@ -1,0 +1,14 @@
+{# Resumen de caja: variables caja, r #}
+<div class="kpis">
+    <div class="kpi"><div class="kpi__etq">Saldo inicial</div><div class="kpi__valor">{{ r.saldo_inicial|moneda }}</div></div>
+    <div class="kpi"><div class="kpi__etq">Ventas en efectivo</div><div class="kpi__valor">{{ r.ventas_efectivo|moneda }}</div><div class="kpi__det">+ cobros cta. cte. {{ r.cobros_efectivo|moneda }}</div></div>
+    <div class="kpi"><div class="kpi__etq">Transferencias</div><div class="kpi__valor">{{ r.transferencias|moneda }}</div></div>
+    <div class="kpi"><div class="kpi__etq">Tarjetas</div><div class="kpi__valor">{{ r.tarjetas|moneda }}</div><div class="kpi__det">Otros medios {{ r.otros|moneda }}</div></div>
+    <div class="kpi"><div class="kpi__etq">Ingresos totales</div><div class="kpi__valor text-verde">{{ r.ingresos|moneda }}</div></div>
+    <div class="kpi"><div class="kpi__etq">Egresos totales</div><div class="kpi__valor text-rojo">{{ r.egresos|moneda }}</div><div class="kpi__det">en efectivo {{ r.efectivo_egr|moneda }}</div></div>
+    <div class="kpi kpi--acento"><div class="kpi__etq">Saldo esperado (efectivo)</div><div class="kpi__valor">{{ r.saldo_esperado|moneda }}</div></div>
+    {% if caja.estado == 'cerrada' %}
+    <div class="kpi"><div class="kpi__etq">Saldo declarado</div><div class="kpi__valor">{{ caja.saldo_declarado|moneda }}</div></div>
+    <div class="kpi {{ 'kpi--alerta' if caja.diferencia and caja.diferencia < 0 }}"><div class="kpi__etq">Diferencia</div><div class="kpi__valor {{ 'text-verde' if caja.diferencia and caja.diferencia > 0 }}">{{ caja.diferencia|moneda }}</div><div class="kpi__det">{{ 'Sobrante' if caja.diferencia > 0 else ('Faltante' if caja.diferencia < 0 else 'Sin diferencia') }}</div></div>
+    {% endif %}
+</div>

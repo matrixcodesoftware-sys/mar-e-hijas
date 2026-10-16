@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import icon, badge %}
+{% block titulo %}Dashboard{% endblock %}
+{% block contenido %}
+<div class="encabezado">
+    <div>
+        <h1>Buen día, {{ current_user.nombre }}</h1>
+        <div class="encabezado__sub">Resumen del galpón · {{ fecha_hoy|fecha }}</div>
+    </div>
+</div>
+
+{# ---------------- Accesos rápidos ---------------- #}
+<div class="accesos">
+    {% if current_user.puede('ventas.crear') %}<a class="acceso" href="{{ url_for('ventas.nueva') }}">{{ icon('cart') }}Nueva venta</a>{% endif %}
+    {% if current_user.puede('pedidos.gestionar') %}<a class="acceso" href="{{ url_for('pedidos.nuevo') }}">{{ icon('clipboard') }}Nuevo pedido</a>{% endif %}
+    {% if current_user.puede('clientes.gestionar') %}<a class="acceso" href="{{ url_for('clientes.nuevo') }}">{{ icon('users') }}Nuevo cliente</a>{% endif %}
+    {% if current_user.puede('presupuestos.gestionar') %}<a class="acceso" href="{{ url_for('presupuestos.nuevo') }}">{{ icon('file') }}Nuevo presupuesto</a>{% endif %}
+    {% if current_user.puede('stock.gestionar') %}<a class="acceso" href="{{ url_for('stock.entrada') }}">{{ icon('in') }}Entrada de material</a>{% endif %}
+    {% if current_user.puede('entregas.gestionar') %}<a class="acceso" href="{{ url_for('entregas.index', rapido='hoy') }}">{{ icon('truck') }}Registrar entrega</a>{% endif %}
+    {% if current_user.puede('caja.operar') %}<a class="acceso" href="{{ url_for('caja.index') }}">{{ icon('cash') }}{{ 'Ver caja' if caja else 'Abrir caja' }}</a>{% endif %}
+</div>
+
+{# ---------------- KPIs ---------------- #}
+<div class="kpis">
+    {% if finanzas %}
+    <div class="kpi kpi--acento">
+        <div class="kpi__etq">{{ icon('cart') }} Ventas del día</div>
+        <div class="kpi__valor">{{ d.ventas_dia.facturacion|moneda }}</div>
+        <div class="kpi__det">{{ d.ventas_dia.cantidad }} venta(s)</div>
+    </div>
+    <div class="kpi kpi--acento">
+        <div class="kpi__etq">{{ icon('calendar') }} Ventas del mes</div>
+        <div class="kpi__valor">{{ d.ventas_mes.facturacion|moneda }}</div>
+        <div class="kpi__det">{{ d.ventas_mes.cantidad }} venta(s) · ticket prom. {{ d.ventas_mes.ticket|moneda }}</div>
+    </div>
+    <div class="kpi">
+        <div class="kpi__etq">{{ icon('dollar') }} Ganancia estimada (mes)</div>
+        <div class="kpi__valor {{ 'text-rojo' if d.ganancia_mes < 0 }}">{{ d.ganancia_mes|moneda }}</div>
+        <div class="kpi__det">Bruta {{ d.ventas_mes.ganancia|moneda }} − gastos {{ d.gastos_mes|moneda }}</div>
+    </div>
+    <div class="kpi">
+        <div class="kpi__etq">{{ icon('cash') }} Dinero en caja</div>
+        {% if caja %}
+        <div class="kpi__valor">{{ resumen_caja.saldo_esperado|moneda }}</div>
+        <div class="kpi__det">Efectivo esperado · caja #{{ caja.id }}</div>
+        {% else %}
+        <div class="kpi__valor muted-2">Cerrada</div>
+        <div class="kpi__det">No hay caja abierta</div>
+        {% endif %}
+        {% if current_user.puede('caja.ver') %}<a class="kpi__link" href="{{ url_for('caja.index') }}" aria-label="Ver caja"></a>{% endif %}
+    </div>
+    {% else %}
+    <div class="kpi kpi--acento">
+        <div class="kpi__etq">{{ icon('cart') }} Ventas del día</div>
+        <div class="kpi__valor">{{ d.ventas_dia.cantidad }}</div>
+        <div class="kpi__det">operaciones registradas hoy</div>
+    </div>
+    {% endif %}
+    <div class="kpi">
+        <div class="kpi__etq">{{ icon('clipboard') }} Pedidos pendientes</div>
+        <div class="kpi__valor">{{ d.pedidos_pendientes }}</div>
+        <div class="kpi__det">sin entregar ni cancelar</div>
+        {% if current_user.puede('pedidos.ver') %}<a class="kpi__link" href="{{ url_for('pedidos.index', rapido='activos') }}" aria-label="Ver pedidos"></a>{% endif %}
+    </div>
+    <div class="kpi">
+        <div class="kpi__etq">{{ icon('truck') }} Entregas de hoy</div>
+        <div class="kpi__valor">{{ d.entregas_hoy.entregadas or 0 }} / {{ d.entregas_hoy.total or 0 }}</div>
+        <div class="kpi__det">realizadas / programadas</div>
+        {% if current_user.puede('entregas.ver') %}<a class="kpi__link" href="{{ url_for('entregas.index', rapido='hoy') }}" aria-label="Ver entregas"></a>{% endif %}
+    </div>
+    {% if current_user.puede('cuentas.ver') %}
+    <div class="kpi {{ 'kpi--alerta' if d.deuda.n }}">
+        <div class="kpi__etq">{{ icon('users') }} Clientes con deuda</div>
+        <div class="kpi__valor">{{ d.deuda.n }}</div>
+        <div class="kpi__det">Total adeudado {{ d.deuda.t|moneda }}</div>
+        <a class="kpi__link" href="{{ url_for('clientes.index', deuda=1, buscar=1) }}" aria-label="Ver deudores"></a>
+    </div>
+    {% endif %}
+    <div class="kpi {{ 'kpi--alerta' if d.stock.bajo }}">
+        <div class="kpi__etq">{{ icon('box') }} Stock bajo mínimo</div>
+        <div class="kpi__valor">{{ d.stock.bajo or 0 }}</div>
+        <div class="kpi__det">de {{ d.stock.materiales }} materiales activos</div>
+        {% if current_user.puede('stock.ver') %}<a class="kpi__link" href="{{ url_for('stock.index', bajo=1) }}" aria-label="Ver stock"></a>{% endif %}
+    </div>
+    <div class="kpi">
+        <div class="kpi__etq">{{ icon('layers') }} Más vendido (mes)</div>
+        {% if d.mas_vendido %}
+        <div class="kpi__valor" style="font-size:1.35rem">{{ d.mas_vendido.nombre }}</div>
+        <div class="kpi__det">{{ d.mas_vendido.cantidad|cantidad }} {{ d.mas_vendido.unidad }}{% if finanzas %} · {{ d.mas_vendido.facturacion|moneda }}{% endif %}</div>
+        {% else %}
+        <div class="kpi__valor muted-2">—</div><div class="kpi__det">Sin ventas este mes</div>
+        {% endif %}
+    </div>
+</div>
+
+{# ---------------- Gráficos ---------------- #}
+<div class="grid grid-2 mb-2">
+    <div class="card">
+        <div class="card__cab"><h3>Ventas por día (últimos 30 días)</h3></div>
+        <div class="card__cuerpo"><div class="grafico"><canvas id="g-dia"></canvas></div></div>
+    </div>
+    {% if finanzas %}
+    <div class="card">
+        <div class="card__cab"><h3>Facturación y ganancia por mes</h3></div>
+        <div class="card__cuerpo"><div class="grafico"><canvas id="g-mes"></canvas></div></div>
+    </div>
+    {% endif %}
+    <div class="card">
+        <div class="card__cab"><h3>Materiales más vendidos (mes)</h3></div>
+        <div class="card__cuerpo"><div class="grafico"><canvas id="g-materiales"></canvas></div></div>
+    </div>
+    {% if finanzas %}
+    <div class="card">
+        <div class="card__cab"><h3>Métodos de pago (mes)</h3></div>
+        <div class="card__cuerpo"><div class="grafico"><canvas id="g-metodos"></canvas></div></div>
+    </div>
+    {% endif %}
+</div>
+
+<div class="grid grid-lateral">
+    <div>
+        {% if current_user.puede('entregas.ver') %}
+        <div class="card">
+            <div class="card__cab"><h3>Entregas de hoy</h3><a class="btn btn--sm" href="{{ url_for('entregas.index', rapido='hoy') }}">Ver logística</a></div>
+            {% if entregas_hoy %}
+            <div class="tabla-scroll"><table class="tabla tabla-responsive">
+                <thead><tr><th>Horario</th><th>Cliente</th><th>Carga</th><th>Camión / chofer</th><th>Estado</th></tr></thead>
+                <tbody>
+                {% for e in entregas_hoy %}
+                <tr>
+                    <td data-etq="Horario">{{ e.horario or "—" }}</td>
+                    <td data-etq="Cliente"><a href="{{ url_for('entregas.ver', entrega_id=e.id) }}">{{ e.cliente }}</a><br><small class="muted">{{ e.direccion }}</small></td>
+                    <td data-etq="Carga">{{ e.carga }}</td>
+                    <td data-etq="Camión">{{ e.patente or "—" }}<br><small class="muted">{{ e.chofer or "Sin chofer" }}</small></td>
+                    <td data-etq="Estado">{{ badge(e.estado, 'estado_entrega') }}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table></div>
+            {% else %}<div class="card__cuerpo muted">No hay entregas programadas para hoy.</div>{% endif %}
+        </div>
+        {% endif %}
+        {% if ultimas_ventas %}
+        <div class="card">
+            <div class="card__cab"><h3>Últimas ventas</h3><a class="btn btn--sm" href="{{ url_for('ventas.index', rapido='hoy') }}">Ver ventas</a></div>
+            <div class="tabla-scroll"><table class="tabla tabla-responsive">
+                <thead><tr><th>N.º</th><th>Fecha</th><th>Cliente</th><th class="right">Total</th><th>Pago</th></tr></thead>
+                <tbody>
+                {% for v in ultimas_ventas %}
+                <tr class="{{ 'fila-anulada' if v.estado == 'anulada' }}">
+                    <td data-etq="N.º"><a href="{{ url_for('ventas.ver', venta_id=v.id) }}">{{ v.id|nro('V') }}</a></td>
+                    <td data-etq="Fecha">{{ v.fecha|fecha_hora }}</td>
+                    <td data-etq="Cliente">{{ v.cliente }}</td>
+                    <td data-etq="Total" class="right num">{{ v.total|moneda }}</td>
+                    <td data-etq="Pago">{{ badge(v.estado_pago, 'estado_pago') }}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table></div>
+        </div>
+        {% endif %}
+    </div>
+    <div>
+        <div class="card">
+            <div class="card__cab"><h3>Stock disponible</h3>{% if current_user.puede('stock.ver') %}<a class="btn btn--sm" href="{{ url_for('stock.index') }}">Stock</a>{% endif %}</div>
+            <div class="card__cuerpo">
+                <ul class="lista-simple">
+                {% for m in stock %}
+                    {% set pct = (m.stock_actual / (m.stock_minimo * 3) * 100) if m.stock_minimo and m.stock_minimo > 0 else 100 %}
+                    <li style="display:block">
+                        <div class="flex between"><span class="fw-600">{{ m.nombre }}</span><span class="num {{ 'text-rojo fw-600' if m.stock_actual <= m.stock_minimo }}">{{ m.stock_actual|cantidad }} {{ m.abreviatura }}</span></div>
+                        <div class="barra mt-1 {{ 'barra--alerta' if m.stock_actual <= m.stock_minimo }}"><span style="width: {{ [[pct, 0]|max, 100]|min }}%"></span></div>
+                    </li>
+                {% else %}
+                    <li class="muted">No hay materiales cargados.</li>
+                {% endfor %}
+                </ul>
+            </div>
+        </div>
+        {% if deudores %}
+        <div class="card">
+            <div class="card__cab"><h3>Mayores deudores</h3></div>
+            <div class="card__cuerpo">
+                <ul class="lista-simple">
+                {% for c in deudores %}
+                    <li><a href="{{ url_for('clientes.cuenta', cliente_id=c.id) }}">{{ c.razon_social }}</a><span class="num text-rojo fw-600">{{ c.saldo|moneda }}</span></li>
+                {% endfor %}
+                </ul>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/vendor/chart.umd.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/graficos.js') }}"></script>
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}

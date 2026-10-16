@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import icon, badge, badge_activo %}
+{% block titulo %}{{ c.razon_social }}{% endblock %}
+{% block contenido %}
+<div class="miga"><a href="{{ url_for('clientes.index') }}">Clientes</a> / Ficha</div>
+<div class="encabezado">
+    <div><h1>{{ c.razon_social }}</h1>
+        <div class="encabezado__sub">{{ badge(c.tipo, 'tipo_cliente') }} {{ badge_activo(c.activo) }} · {{ c.condicion_iva|etiqueta('condicion_iva') }}{% if c.documento %} · {{ c.documento_tipo }} {{ c.documento }}{% endif %}</div></div>
+    <div class="encabezado__acciones">
+        {% if current_user.puede('ventas.crear') %}<a class="btn btn--primario" href="{{ url_for('ventas.nueva', cliente_id=c.id) }}">{{ icon('cart') }} Nueva venta</a>{% endif %}
+        {% if current_user.puede('presupuestos.gestionar') %}<a class="btn" href="{{ url_for('presupuestos.nuevo', cliente_id=c.id) }}">{{ icon('file') }} Presupuesto</a>{% endif %}
+        {% if current_user.puede('pedidos.gestionar') %}<a class="btn" href="{{ url_for('pedidos.nuevo', cliente_id=c.id) }}">{{ icon('clipboard') }} Pedido</a>{% endif %}
+        {% if current_user.puede('clientes.gestionar') %}<a class="btn" href="{{ url_for('clientes.editar', cliente_id=c.id) }}">{{ icon('edit') }} Editar</a>{% endif %}
+    </div>
+</div>
+
+<div class="kpis">
+    {% if current_user.puede('cuentas.ver') %}
+    <div class="kpi kpi--acento"><div class="kpi__etq">Saldo cuenta corriente</div>
+        <div class="kpi__valor {{ 'text-rojo' if c.saldo and c.saldo > 0 else 'text-verde' }}">{{ (c.saldo or 0)|moneda }}</div>
+        <div class="kpi__det">{% if c.limite_credito and c.limite_credito > 0 %}Límite {{ c.limite_credito|moneda }}{% else %}Sin límite de crédito{% endif %}</div>
+        <a class="kpi__link" href="{{ url_for('clientes.cuenta', cliente_id=c.id) }}" aria-label="Ver cuenta"></a></div>
+    {% endif %}
+    <div class="kpi"><div class="kpi__etq">Compras</div><div class="kpi__valor">{{ stats.ventas }}</div><div class="kpi__det">Última: {{ stats.ultima_compra|fecha or '—' }}</div></div>
+    {% if current_user.puede('ventas.ver') %}<div class="kpi"><div class="kpi__etq">Total comprado</div><div class="kpi__valor">{{ stats.facturado|moneda }}</div><div class="kpi__det">histórico</div></div>{% endif %}
+</div>
+
+<div class="grid grid-lateral">
+    <div>
+        {% if current_user.puede('ventas.ver') %}
+        <div class="card">
+            <div class="card__cab"><h3>Historial de compras</h3><a class="btn btn--sm" href="{{ url_for('ventas.index', cliente_id=c.id, buscar=1) }}">Ver todas</a></div>
+            {% if ventas %}<div class="tabla-scroll"><table class="tabla tabla-responsive">
+                <thead><tr><th>N.º</th><th>Fecha</th><th>Entrega</th><th class="right">Total</th><th>Pago</th></tr></thead>
+                <tbody>{% for v in ventas %}
+                <tr class="{{ 'fila-anulada' if v.estado == 'anulada' }}"><td data-etq="N.º"><a href="{{ url_for('ventas.ver', venta_id=v.id) }}">{{ v.id|nro('V') }}</a></td><td data-etq="Fecha">{{ v.fecha|fecha }}</td>
+                    <td data-etq="Entrega">{{ v.tipo_entrega|etiqueta('tipo_entrega') }}</td><td data-etq="Total" class="right num">{{ v.total|moneda }}</td><td data-etq="Pago">{{ badge(v.estado_pago, 'estado_pago') }}</td></tr>
+                {% endfor %}</tbody></table></div>
+            {% else %}<div class="card__cuerpo muted">Todavía no compró.</div>{% endif %}
+        </div>
+        {% endif %}
+        {% if current_user.puede('pedidos.ver') %}
+        <div class="card">
+            <div class="card__cab"><h3>Pedidos</h3></div>
+            {% if pedidos %}<div class="tabla-scroll"><table class="tabla tabla-responsive">
+                <thead><tr><th>N.º</th><th>Solicitado para</th><th class="right">Total</th><th>Estado</th></tr></thead>
+                <tbody>{% for p in pedidos %}
+                <tr><td data-etq="N.º"><a href="{{ url_for('pedidos.ver', pedido_id=p.id) }}">{{ p.id|nro('P') }}</a></td><td data-etq="Fecha">{{ p.fecha_solicitada|fecha }}</td><td data-etq="Total" class="right num">{{ p.total|moneda }}</td><td data-etq="Estado">{{ badge(p.estado, 'estado_pedido') }}</td></tr>
+                {% endfor %}</tbody></table></div>
+            {% else %}<div class="card__cuerpo muted">Sin pedidos.</div>{% endif %}
+        </div>
+        {% endif %}
+        {% if current_user.puede('presupuestos.ver') %}
+        <div class="card">
+            <div class="card__cab"><h3>Presupuestos</h3></div>
+            {% if presupuestos %}<div class="tabla-scroll"><table class="tabla tabla-responsive">
+                <thead><tr><th>N.º</th><th>Fecha</th><th>Vence</th><th class="right">Total</th><th>Estado</th></tr></thead>
+                <tbody>{% for p in presupuestos %}
+                <tr><td data-etq="N.º"><a href="{{ url_for('presupuestos.ver', presupuesto_id=p.id) }}">{{ p.id|nro('PR') }}</a></td><td data-etq="Fecha">{{ p.fecha|fecha }}</td><td data-etq="Vence">{{ p.fecha_vencimiento|fecha }}</td><td data-etq="Total" class="right num">{{ p.total|moneda }}</td><td data-etq="Estado">{{ badge(p.estado, 'estado_presupuesto') }}</td></tr>
+                {% endfor %}</tbody></table></div>
+            {% else %}<div class="card__cuerpo muted">Sin presupuestos.</div>{% endif %}
+        </div>
+        {% endif %}
+        {% if pagos %}
+        <div class="card">
+            <div class="card__cab"><h3>Pagos</h3><a class="btn btn--sm" href="{{ url_for('clientes.cuenta', cliente_id=c.id) }}">Cuenta corriente</a></div>
+            <div class="tabla-scroll"><table class="tabla tabla-responsive">
+                <thead><tr><th>Fecha</th><th>Método</th><th>Aplicado a</th><th class="right">Monto</th></tr></thead>
+                <tbody>{% for p in pagos %}
+                <tr class="{{ 'fila-anulada' if p.estado == 'anulado' }}"><td data-etq="Fecha">{{ p.fecha|fecha_hora }}</td><td data-etq="Método">{{ p.metodo }}{% if p.referencia %} · {{ p.referencia }}{% endif %}</td>
+                    <td data-etq="Aplicado">{% if p.venta_id %}<a href="{{ url_for('ventas.ver', venta_id=p.venta_id) }}">{{ p.venta_id|nro('V') }}</a>{% else %}Cuenta corriente{% endif %}</td>
+                    <td data-etq="Monto" class="right num">{{ p.monto|moneda }}</td></tr>
+                {% endfor %}</tbody></table></div>
+        </div>
+        {% endif %}
+    </div>
+    <div>
+        <div class="card">
+            <div class="card__cab"><h3>Contacto y ubicación</h3></div>
+            <div class="card__cuerpo">
+                <dl class="dl">
+                    <dt>Teléfono</dt><dd>{% if c.telefono %}<a href="tel:{{ c.telefono }}">{{ c.telefono }}</a>{% else %}—{% endif %}</dd>
+                    <dt>WhatsApp</dt><dd>{% if c.whatsapp %}<a href="https://wa.me/{{ c.whatsapp|replace(' ','')|replace('-','')|replace('+','') }}" target="_blank" rel="noopener">{{ c.whatsapp }}</a>{% else %}—{% endif %}</dd>
+                    <dt>Email</dt><dd>{{ c.email or '—' }}</dd>
+                    <dt>Dirección</dt><dd>{{ c.direccion or '—' }}{% if c.localidad %}, {{ c.localidad }}{% endif %}</dd>
+                    <dt>Zona</dt><dd>{{ c.zona or '—' }}</dd>
+                    <dt>Referencia</dt><dd>{{ c.referencia_ubicacion or '—' }}</dd>
+                    <dt>Observaciones</dt><dd>{{ c.observaciones or '—' }}</dd>
+                    <dt>Alta</dt><dd>{{ c.creado_en|fecha }}</dd>
+                </dl>
+            </div>
+        </div>
+        {% if frecuentes %}
+        <div class="card">
+            <div class="card__cab"><h3>Materiales que más compra</h3></div>
+            <div class="card__cuerpo"><ul class="lista-simple">
+                {% for f in frecuentes %}<li><span>{{ f.nombre }}</span><span class="num muted">{{ f.cantidad|cantidad }} {{ f.abreviatura }}</span></li>{% endfor %}
+            </ul></div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,47 @@
+{% extends "configuracion/_layout.html" %}
+{% from "partials/macros.html" import icon, csrf %}
+{% block seccion %}
+<div class="aviso aviso--azul mb-2">{{ icon('scale') }}<span><strong>Cómo funciona:</strong> «1 [unidad origen] = factor [unidad destino]». Las conversiones <strong>generales</strong> valen para todos los materiales (ej.: 1 viaje = 6 m³). Las que dependen de la densidad del material (ej.: arena 1 t = 0,625 m³) se cargan en la ficha de cada material y tienen prioridad. El sistema también usa la inversa y combina hasta 3 pasos.</span></div>
+<div class="grid grid-lateral">
+    <div>
+        <div class="card">
+            <div class="card__cab"><h3>Conversiones generales</h3></div>
+            <div class="tabla-scroll"><table class="tabla tabla-responsive">
+                <thead><tr><th>Equivalencia</th><th>Observaciones</th><th></th></tr></thead>
+                <tbody>{% for c in generales %}
+                <tr><td data-etq="Equivalencia" class="fw-600">1 {{ c.origen_nombre }} = {{ c.factor|cantidad }} {{ c.destino_nombre }}</td><td data-etq="Obs.">{{ c.observaciones or '' }}</td>
+                    <td class="acciones"><a class="btn btn--sm btn--fantasma" href="{{ url_for('configuracion.seccion', nombre='conversiones', editar=c.id) }}">{{ icon('edit') }}</a>
+                        <form method="post" style="display:inline" data-confirmar="¿Eliminar esta conversión?">{{ csrf() }}<input type="hidden" name="eliminar" value="{{ c.id }}"><button class="btn btn--sm btn--fantasma">{{ icon('trash') }}</button></form></td></tr>
+                {% else %}<tr><td colspan="3" class="center muted">Sin conversiones generales.</td></tr>{% endfor %}</tbody>
+            </table></div>
+        </div>
+        <div class="card">
+            <div class="card__cab"><h3>Conversiones por material</h3></div>
+            <div class="tabla-scroll"><table class="tabla tabla-responsive">
+                <thead><tr><th>Material</th><th>Equivalencia</th><th></th></tr></thead>
+                <tbody>{% for c in especificas %}
+                <tr><td data-etq="Material">{{ c.material_nombre }}</td><td data-etq="Equivalencia">1 {{ c.origen_nombre }} = {{ c.factor|cantidad }} {{ c.destino_nombre }}</td>
+                    <td class="acciones"><a class="btn btn--sm" href="{{ url_for('materiales.ver', material_id=c.material_id) }}#conversiones">Editar en material</a></td></tr>
+                {% else %}<tr><td colspan="3" class="center muted">Ninguna.</td></tr>{% endfor %}</tbody>
+            </table></div>
+        </div>
+    </div>
+    <form method="post" class="card">
+        {{ csrf() }}
+        {% if registro %}<input type="hidden" name="id" value="{{ registro.id }}">{% endif %}
+        <div class="card__cab"><h3>{{ 'Editar' if registro else 'Nueva' }} conversión general</h3></div>
+        <div class="card__cuerpo form-grid">
+            <div class="campo col-12"><label>1 unidad de</label><select class="input" name="unidad_origen_id" required><option value="">…</option>
+                {% for id, n in unidades %}<option value="{{ id }}" {{ 'selected' if registro and registro.unidad_origen_id == id }}>{{ n }}</option>{% endfor %}</select></div>
+            <div class="campo col-12"><label>equivale a (factor)</label><input class="input num" type="number" name="factor" step="0.000001" min="0.000001" required value="{{ registro.factor if registro else '' }}"></div>
+            <div class="campo col-12"><label>unidades de</label><select class="input" name="unidad_destino_id" required><option value="">…</option>
+                {% for id, n in unidades %}<option value="{{ id }}" {{ 'selected' if registro and registro.unidad_destino_id == id }}>{{ n }}</option>{% endfor %}</select></div>
+            <div class="campo col-12"><label>Observaciones</label><input class="input" name="observaciones" maxlength="255" value="{{ registro.observaciones or '' if registro else '' }}"></div>
+        </div>
+        <div class="card__pie form-acciones mt-0">
+            {% if registro %}<a class="btn" href="{{ url_for('configuracion.seccion', nombre='conversiones') }}">Cancelar</a>{% endif %}
+            <button class="btn btn--primario">{{ icon('check') }} Guardar</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

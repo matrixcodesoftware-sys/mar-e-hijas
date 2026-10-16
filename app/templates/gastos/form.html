@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import icon, campo, select, csrf %}
+{% block titulo %}Registrar gasto{% endblock %}
+{% block contenido %}
+<div class="miga"><a href="{{ url_for('gastos.index') }}">Gastos</a> / Nuevo</div>
+<div class="encabezado"><div><h1>Registrar gasto</h1><div class="encabezado__sub">Se registra como egreso en la caja abierta.</div></div></div>
+{% if not caja %}<div class="aviso aviso--rojo mb-2">{{ icon('cash') }}<span>No hay caja abierta. {% if current_user.puede('caja.operar') %}<a href="{{ url_for('caja.index') }}">Abrí la caja</a> para registrar gastos.{% endif %}</span></div>{% endif %}
+<form method="post" class="card" style="max-width:860px" novalidate>
+    {{ csrf() }}
+    <div class="card__cuerpo form-grid">
+        {{ select("categoria_id", "Categoría", categorias, g.categoria_id, errores=errores, requerido=True, col=6) }}
+        {{ campo("fecha", "Fecha", g.fecha, tipo="date", errores=errores, requerido=True, col=6) }}
+        {{ campo("descripcion", "Descripción", g.descripcion, errores=errores, requerido=True, col=12, placeholder="Ej.: gasoil camión AB123CD, cambio de cubiertas…", attrs='maxlength="200"') }}
+        {{ campo("monto", "Monto", g.monto, tipo="number", errores=errores, requerido=True, col=6, attrs='step="0.01" min="0.01"') }}
+        <div class="campo col-6"><label for="f_metodo">Método de pago <span class="req">*</span></label>
+            <select class="input" id="f_metodo" name="metodo_pago_id" required>{% for mp in metodos %}<option value="{{ mp.id }}" {{ 'selected' if g.metodo_pago_id|string == mp.id|string }}>{{ mp.nombre }}</option>{% endfor %}</select></div>
+        {{ select("vehiculo_id", "Vehículo (si corresponde)", vehiculos, g.vehiculo_id, errores=errores, col=6, vacio="—") }}
+        {{ select("proveedor_id", "Proveedor (si corresponde)", proveedores, g.proveedor_id, errores=errores, col=6, vacio="—") }}
+        {{ campo("observaciones", "Observaciones", g.observaciones, tipo="textarea", errores=errores, col=12) }}
+    </div>
+    <div class="card__pie form-acciones mt-0">
+        <a class="btn" href="{{ url_for('gastos.index') }}">Cancelar</a>
+        <button class="btn btn--primario" {{ 'disabled' if not caja }}>{{ icon('check') }} Registrar gasto</button>
+    </div>
+</form>
+{% endblock %}

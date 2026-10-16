@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import icon, paginacion, resultado_info, buscar_primero, vacio, form_post %}
+{% block titulo %}Gastos{% endblock %}
+{% block contenido %}
+<div class="encabezado">
+    <div><h1>Gastos</h1><div class="encabezado__sub">Combustible, mantenimiento, servicios, sueldos y otros</div></div>
+    <div class="encabezado__acciones">{% if current_user.puede('gastos.gestionar') %}<a class="btn btn--primario" href="{{ url_for('gastos.nuevo') }}">{{ icon('plus') }} Registrar gasto</a>{% endif %}</div>
+</div>
+{% if por_categoria %}
+<div class="kpis">
+    {% for c in por_categoria[:4] %}<div class="kpi"><div class="kpi__etq">{{ c.nombre }} · mes</div><div class="kpi__valor">{{ c.total|moneda }}</div></div>{% endfor %}
+</div>
+{% endif %}
+<form class="filtros" method="get">
+    <input type="hidden" name="buscar" value="1">
+    <div class="filtros__grid">
+        <div class="campo"><label>Buscar</label><input class="input" name="q" value="{{ request.args.q or '' }}" placeholder="Descripción"></div>
+        <div class="campo"><label>Categoría</label><select class="input" name="categoria_id"><option value="">Todas</option>
+            {% for id, n in categorias %}<option value="{{ id }}" {{ 'selected' if request.args.categoria_id == id|string }}>{{ n }}</option>{% endfor %}</select></div>
+        <div class="campo"><label>Vehículo</label><select class="input" name="vehiculo_id"><option value="">Todos</option>
+            {% for id, n in vehiculos %}<option value="{{ id }}" {{ 'selected' if request.args.vehiculo_id == id|string }}>{{ n }}</option>{% endfor %}</select></div>
+        <div class="campo"><label>Desde</label><input class="input" type="date" name="desde" value="{{ request.args.desde or '' }}"></div>
+        <div class="campo"><label>Hasta</label><input class="input" type="date" name="hasta" value="{{ request.args.hasta or '' }}"></div>
+        <div class="campo"><label>Estado</label><select class="input" name="estado"><option value="">Todos</option><option value="registrado" {{ 'selected' if request.args.estado == 'registrado' }}>Registrados</option><option value="anulado" {{ 'selected' if request.args.estado == 'anulado' }}>Anulados</option></select></div>
+        <div class="filtros__acciones"><button class="btn btn--oscuro">{{ icon('search') }} Buscar</button></div>
+    </div>
+    <div class="chips">{% for k, t in [('hoy','Hoy'),('semana','Esta semana'),('mes','Este mes')] %}<a class="chip {{ 'activo' if request.args.rapido == k }}" href="{{ url_for('gastos.index', rapido=k) }}">{{ t }}</a>{% endfor %}</div>
+</form>
+<div class="card">
+    {% if pagina is none %}{{ buscar_primero() }}
+    {% elif not pagina.items %}{{ vacio() }}
+    {% else %}
+    {% call resultado_info(pagina, "gastos") %}<span>Total del filtro: <strong class="num">{{ total|moneda }}</strong></span>{% endcall %}
+    <div class="tabla-scroll"><table class="tabla tabla-responsive">
+        <thead><tr><th>Fecha</th><th>Categoría</th><th>Descripción</th><th>Método</th><th>Usuario</th><th class="right">Monto</th><th></th></tr></thead>
+        <tbody>{% for g in pagina.items %}
+        <tr class="{{ 'fila-anulada' if g.estado == 'anulado' }}">
+            <td data-etq="Fecha">{{ g.fecha|fecha }}</td>
+            <td data-etq="Categoría">{{ g.categoria }}</td>
+            <td data-etq="Descripción">{{ g.descripcion }}{% if g.patente %}<br><small class="muted">{{ g.patente }}</small>{% endif %}{% if g.proveedor %}<br><small class="muted">{{ g.proveedor }}</small>{% endif %}</td>
+            <td data-etq="Método">{{ g.metodo }}</td>
+            <td data-etq="Usuario">{{ g.usuario }}</td>
+            <td data-etq="Monto" class="right num fw-600">{{ g.monto|moneda }}</td>
+            <td class="acciones">{% if g.estado == 'registrado' and current_user.puede('gastos.gestionar') %}{{ form_post(url_for('gastos.anular', gasto_id=g.id), '', 'btn btn--sm btn--fantasma', confirmar='¿Anular este gasto? Se registrará el reingreso en la caja abierta.', icono='ban') }}{% endif %}</td>
+        </tr>{% endfor %}</tbody>
+    </table></div>
+    {{ paginacion(pagina) }}
+    {% endif %}
+</div>
+{% endblock %}

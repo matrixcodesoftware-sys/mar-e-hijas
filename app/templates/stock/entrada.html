@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import icon, campo, select, csrf %}
+{% block titulo %}Entrada de material{% endblock %}
+{% block contenido %}
+<div class="miga"><a href="{{ url_for('stock.index') }}">Stock</a> / Entrada</div>
+<div class="encabezado"><div><h1>Entrada de material al galpón</h1><div class="encabezado__sub">Registrá cada camión que descarga, con su remito y costo.</div></div></div>
+
+<form method="post" class="card" novalidate>
+    {{ csrf() }}
+    <div class="card__cuerpo">
+        <fieldset class="seccion"><legend>Material recibido</legend>
+            <div class="form-grid">
+                {{ select("material_id", "Material", materiales, d.material_id, errores=errores, requerido=True, col=6) }}
+                {{ campo("cantidad", "Cantidad", d.cantidad, tipo="number", errores=errores, requerido=True, col=3, attrs='step="0.001" min="0.001"') }}
+                {{ select("unidad_id", "Unidad", unidades, d.unidad_id, errores=errores, requerido=True, col=3, ayuda="Se convierte a la unidad de stock.") }}
+                {{ campo("fecha", "Fecha", d.fecha, tipo="date", errores=errores, requerido=True, col=3) }}
+                {{ campo("remito_numero", "N.º de remito", d.remito_numero, errores=errores, col=3, attrs='maxlength="40"') }}
+                <div class="campo col-6"><label>Proveedor</label>
+                    <div data-selector="proveedores" data-name="proveedor_id" data-valor="{{ d.proveedor_id or '' }}" data-texto="" data-placeholder="Buscar proveedor…"></div></div>
+            </div>
+        </fieldset>
+        <fieldset class="seccion"><legend>Transporte</legend>
+            <div class="form-grid">
+                {{ select("vehiculo_id", "Camión propio", vehiculos, d.vehiculo_id, errores=errores, col=6, vacio="— No, camión del proveedor —") }}
+                {{ campo("vehiculo_descripcion", "Camión externo (patente / empresa)", d.vehiculo_descripcion, errores=errores, col=6, attrs='maxlength="120"') }}
+            </div>
+        </fieldset>
+        <fieldset class="seccion"><legend>Costo y pago</legend>
+            <div class="form-grid">
+                {{ campo("costo_total", "Costo total de la entrada", d.costo_total, tipo="number", errores=errores, col=4, attrs='step="0.01" min="0"') }}
+                <div class="campo col-4"><label>Condición</label>
+                    <div class="segmentado">
+                        <input type="radio" id="c_cuenta" name="condicion" value="cuenta" {{ 'checked' if d.condicion != 'contado' }}><label for="c_cuenta">A cuenta del proveedor</label>
+                        <input type="radio" id="c_contado" name="condicion" value="contado" {{ 'checked' if d.condicion == 'contado' }}><label for="c_contado">Pago contado</label>
+                    </div></div>
+                <div class="campo col-4"><label for="f_metodo_pago_id">Pagado con</label>
+                    <select class="input" id="f_metodo_pago_id" name="metodo_pago_id"><option value="">—</option>
+                        {% for mp in metodos %}<option value="{{ mp.id }}" {{ 'selected' if d.metodo_pago_id|string == mp.id|string }}>{{ mp.nombre }}</option>{% endfor %}
+                    </select>
+                    {% if errores.metodo_pago_id %}<div class="campo__error">{{ errores.metodo_pago_id }}</div>{% else %}<div class="campo__ayuda">Sólo si es pago contado (sale de caja).</div>{% endif %}
+                </div>
+                <div class="campo col-12"><label class="check"><input type="checkbox" name="actualizar_precio" value="1" {{ 'checked' if d.actualizar_precio }}> Actualizar el precio de compra del material con el costo de esta entrada</label></div>
+                {{ campo("observaciones", "Observaciones", d.observaciones, tipo="textarea", errores=errores, col=12) }}
+            </div>
+        </fieldset>
+    </div>
+    <div class="card__pie form-acciones mt-0">
+        <a class="btn" href="{{ url_for('stock.index') }}">Cancelar</a>
+        <button class="btn" name="otra" value="1" data-multi>{{ icon('plus') }} Guardar y cargar otra</button>
+        <button class="btn btn--primario" data-multi>{{ icon('check') }} Registrar entrada</button>
+    </div>
+</form>
+{% endblock %}

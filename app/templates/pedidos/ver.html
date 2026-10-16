@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import icon, badge, csrf, form_post %}
+{% block titulo %}Pedido {{ p.id|nro('P') }}{% endblock %}
+{% block contenido %}
+<div class="miga"><a href="{{ url_for('pedidos.index') }}">Pedidos</a> / {{ p.id|nro('P') }}</div>
+<div class="encabezado">
+    <div><h1>Pedido {{ p.id|nro('P') }}</h1>
+        <div class="encabezado__sub">{{ badge(p.estado, 'estado_pedido') }} {{ badge(p.tipo_entrega, 'tipo_entrega') }} · para el {{ p.fecha_solicitada|fecha }} {{ p.horario or '' }}</div></div>
+    <div class="encabezado__acciones">
+        {% if current_user.puede('pedidos.gestionar') and not p.venta_id and p.estado in ('pendiente','confirmado','preparando') %}
+        <a class="btn" href="{{ url_for('pedidos.editar', pedido_id=p.id) }}">{{ icon('edit') }} Editar</a>{% endif %}
+        {% if p.venta_id %}<a class="btn" href="{{ url_for('ventas.ver', venta_id=p.venta_id) }}">{{ icon('cart') }} Venta {{ p.venta_id|nro('V') }}</a>
+        {% elif current_user.puede('ventas.crear') and p.estado != 'cancelado' %}
+        <a class="btn btn--primario" href="{{ url_for('ventas.nueva', pedido=p.id) }}">{{ icon('cart') }} Generar venta</a>{% endif %}
+    </div>
+</div>
+
+{% if not p.venta_id and p.estado not in ('cancelado',) %}
+<div class="aviso aviso--ambar mb-2">{{ icon('alert') }}<span>Este pedido todavía no tiene venta: el stock no fue descontado ni se registró el cobro.</span></div>
+{% endif %}
+
+{% if current_user.puede('pedidos.gestionar') and transiciones %}
+<div class="card mb-2"><div class="card__cuerpo flex flex-wrap gap-1">
+    <span class="muted fw-600">Cambiar estado:</span>
+    {% for est in transiciones %}
+    {{ form_post(url_for('pedidos.estado', pedido_id=p.id), 'Cancelar pedido' if est == 'cancelado' else est|etiqueta('estado_pedido'), 'btn btn--sm ' ~ ('btn--peligro' if est == 'cancelado' else ('btn--exito' if est == 'entregado' else '')), confirmar=('¿Cancelar el pedido? Se cancelan sus viajes pendientes.' if est == 'cancelado' else None), extra={'estado': est}) }}
+    {% endfor %}
+</div></div>
+{% endif %}
+
+<div class="grid grid-lateral">
+    <div>
+        <div class="card">
+            <div class="card__cab"><h3>Materiales</h3></div>
+            <div class="tabla-scroll"><table class="tabla tabla-responsive">
+                <thead><tr><th>Material</th><th class="right">Pedido</th>{% if p.tipo_entrega == 'envio' %}<th class="right">Programado</th><th class="right">Entregado</th>{% endif %}<th class="right">Precio</th><th class="right">Subtotal</th></tr></thead>
+                <tbody>{% for d in detalle %}
+                <tr><td data-etq="Material" class="fw-600">{{ d.material }}</td>
+                    <td data-etq="Pedido" class="right num">{{ d.cantidad|cantidad }} {{ d.unidad }}</td>
+                    {% if p.tipo_entrega == 'envio' %}
+                    <td data-etq="Programado" class="right num">{{ d.programado|cantidad }}</td>
+                    <td data-etq="Entregado" class="right num {{ 'text-verde fw-600' if d.entregado >= d.cantidad }}">{{ d.entregado|cantidad }}</td>{% endif %}
+                    <td data-etq="Precio" class="right num">{{ d.precio_unitario|moneda }}{% if d.descuento_pct %}<br><small class="muted">−{{ d.descuento_pct|cantidad }} %</small>{% endif %}</td>
+                    <td data-etq="Subtotal" class="right num fw-600">{{ d.subtotal|moneda }}</td></tr>
+                {% endfor %}</tbody>
+            </table></div>
+            <div class="card__cuerpo"><div class="totales">
+                <div><span>Subtotal</span><span class="num">{{ p.subtotal|moneda }}</span></div>
+                {% if p.descuento_general %}<div><span>Descuento</span><span class="num">− {{ p.descuento_general|moneda }}</span></div>{% endif %}
+                {% if p.tipo_entrega == 'envio' %}<div><span>Flete</span><span class="num">{{ p.costo_envio|moneda }}</span></div>{% endif %}
+                <div class="total"><span>TOTAL</span><span class="num">{{ p.total|moneda }}</span></div>
+            </div></div>
+        </div>
+
+        {% if p.tipo_entrega == 'envio' %}
+        <div class="card" id="viajes">
+            <div class="card__cab"><h3>Viajes / entregas</h3></div>
+            {% if entregas %}<div class="tabla-scroll"><table class="tabla tabla-responsive">
+                <thead><tr><th>N.º</th><th>Fecha</th><th>Chofer</th><th>Camión</th><th>Estado</th></tr></thead>
+                <tbody>{% for e in entregas %}
+                <tr><td data-etq="N.º"><a href="{{ url_for('entregas.ver', entrega_id=e.id) }}">{{ e.id|nro('E') }}</a></td><td data-etq="Fecha">{{ e.fecha|fecha }} {{ e.horario or '' }}</td>
+                    <td data-etq="Chofer">{{ e.chofer or '—' }}</td><td data-etq="Camión">{{ e.patente or '—' }}</td><td data-etq="Estado">{{ badge(e.estado, 'estado_entrega') }}</td></tr>
+                {% endfor %}</tbody></table></div>
+            {% else %}<div class="card__cuerpo muted">Todavía no hay viajes programados.</div>{% endif %}
+
+            {% if current_user.puede('entregas.gestionar') and hay_pendiente and p.estado not in ('cancelado','entregado') %}
+            <form method="post" action="{{ url_for('pedidos.viaje', pedido_id=p.id) }}" class="card__cuerpo" style="border-top:1px solid var(--borde)">
+                {{ csrf() }}
+                <h3>Programar viaje</h3>
+                <p class="muted text-sm mt-0">Indicá cuánto lleva este camión. Se controla que no supere su capacidad; si no entra, programá varios viajes.</p>
+                <div class="form-grid">
+                    {% for d in detalle if d.pendiente > 0 %}
+                    <div class="campo col-6"><label>{{ d.material }} <span class="muted">(pendiente {{ d.pendiente|cantidad }} {{ d.unidad }})</span></label>
+                        <div class="input-grupo"><input class="input num" type="number" name="cant_{{ d.id }}" step="0.001" min="0" max="{{ d.pendiente }}" value="{{ d.pendiente }}"><span class="sufijo">{{ d.unidad }}</span></div></div>
+                    {% endfor %}
+                    <div class="campo col-6"><label>Camión</label><select class="input" name="vehiculo_id"><option value="">Asignar después</option>
+                        {% for id, n in vehiculos %}<option value="{{ id }}" {{ 'selected' if p.vehiculo_id == id }}>{{ n }}</option>{% endfor %}</select></div>
+                    <div class="campo col-6"><label>Chofer</label><select class="input" name="chofer_id"><option value="">Asignar después</option>
+                        {% for id, n in choferes %}<option value="{{ id }}" {{ 'selected' if p.chofer_id == id }}>{{ n }}</option>{% endfor %}</select></div>
+                    <div class="campo col-6"><label>Fecha</label><input class="input" type="date" name="fecha" value="{{ p.fecha_solicitada|fecha_iso }}"></div>
+                    <div class="campo col-6"><label>Horario</label><input class="input" name="horario" value="{{ p.horario or '' }}" maxlength="40"></div>
+                    <div class="campo col-12"><label>Observaciones para el chofer</label><input class="input" name="observaciones" value="{{ p.observaciones or '' }}" maxlength="1000"></div>
+                </div>
+                <div class="form-acciones"><button class="btn btn--primario">{{ icon('truck') }} Programar viaje</button></div>
+            </form>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+    <div>
+        <div class="card">
+            <div class="card__cab"><h3>Cliente y entrega</h3></div>
+            <div class="card__cuerpo"><dl class="dl">
+                <dt>Cliente</dt><dd><a href="{{ url_for('clientes.ver', cliente_id=p.cliente_id) }}">{{ p.cliente }}</a></dd>
+                <dt>Teléfono</dt><dd>{% if p.cliente_whatsapp or p.cliente_telefono %}<a href="tel:{{ p.cliente_whatsapp or p.cliente_telefono }}">{{ p.cliente_whatsapp or p.cliente_telefono }}</a>{% else %}—{% endif %}</dd>
+                {% if p.tipo_entrega == 'envio' %}
+                <dt>Dirección</dt><dd>{{ p.direccion_entrega or '—' }}{% if p.localidad %}, {{ p.localidad }}{% endif %}</dd>
+                <dt>Zona</dt><dd>{{ p.zona or '—' }}</dd>
+                <dt>Referencia</dt><dd>{{ p.referencia or '—' }}</dd>
+                <dt>Camión sugerido</dt><dd>{{ p.patente or '—' }}</dd>
+                <dt>Chofer sugerido</dt><dd>{{ p.chofer or '—' }}</dd>
+                {% endif %}
+                <dt>Cargado por</dt><dd>{{ p.usuario }} · {{ p.fecha|fecha_hora }}</dd>
+                {% if p.presupuesto_id %}<dt>Presupuesto</dt><dd><a href="{{ url_for('presupuestos.ver', presupuesto_id=p.presupuesto_id) }}">{{ p.presupuesto_id|nro('PR') }}</a></dd>{% endif %}
+                <dt>Observaciones</dt><dd>{{ p.observaciones or '—' }}</dd>
+            </dl></div>
+        </div>
+    </div>
+</div>
+{% endblock %}

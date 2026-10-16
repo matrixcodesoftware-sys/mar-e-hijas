@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import icon, badge, paginacion, resultado_info, buscar_primero, vacio %}
+{% block titulo %}Pedidos{% endblock %}
+{% block contenido %}
+<div class="encabezado">
+    <div><h1>Pedidos</h1><div class="encabezado__sub">Pedidos de clientes con fecha de entrega</div></div>
+    <div class="encabezado__acciones">{% if current_user.puede('pedidos.gestionar') %}<a class="btn btn--primario" href="{{ url_for('pedidos.nuevo') }}">{{ icon('plus') }} Nuevo pedido</a>{% endif %}</div>
+</div>
+<div class="kpis">
+    {% for est in ['pendiente','confirmado','preparando','listo','en_camino'] %}
+    <div class="kpi"><div class="kpi__etq">{{ est|etiqueta('estado_pedido') }}</div><div class="kpi__valor">{{ conteo.get(est, 0) }}</div>
+        <a class="kpi__link" href="{{ url_for('pedidos.index', estado=est, buscar=1) }}" aria-label="Ver"></a></div>
+    {% endfor %}
+</div>
+<form class="filtros" method="get">
+    <input type="hidden" name="buscar" value="1">
+    <div class="filtros__grid">
+        <div class="campo"><label>N.º</label><input class="input" name="numero" value="{{ request.args.numero or '' }}" placeholder="P-000123"></div>
+        <div class="campo"><label>Cliente</label><div data-selector="clientes" data-name="cliente_id" data-valor="{{ cliente_sel.id if cliente_sel else '' }}" data-texto="{{ cliente_sel.razon_social if cliente_sel else '' }}" data-placeholder="Buscar cliente…"></div></div>
+        <div class="campo"><label>Estado</label><select class="input" name="estado"><option value="">Todos</option>
+            {% for k, t in opciones('estado_pedido') %}<option value="{{ k }}" {{ 'selected' if request.args.estado == k }}>{{ t }}</option>{% endfor %}</select></div>
+        <div class="campo"><label>Entrega desde</label><input class="input" type="date" name="desde" value="{{ request.args.desde or '' }}"></div>
+        <div class="campo"><label>Entrega hasta</label><input class="input" type="date" name="hasta" value="{{ request.args.hasta or '' }}"></div>
+        <div class="campo"><label>Chofer</label><select class="input" name="chofer_id"><option value="">Todos</option>
+            {% for id, n in choferes %}<option value="{{ id }}" {{ 'selected' if request.args.chofer_id == id|string }}>{{ n }}</option>{% endfor %}</select></div>
+        <div class="filtros__acciones"><button class="btn btn--oscuro">{{ icon('search') }} Buscar</button></div>
+    </div>
+    <div class="chips">
+        {% for k, t in [('activos','Activos'),('hoy','Para hoy'),('manana','Para mañana'),('atrasados','Atrasados')] %}
+        <a class="chip {{ 'activo' if request.args.rapido == k }}" href="{{ url_for('pedidos.index', rapido=k) }}">{{ t }}</a>{% endfor %}
+    </div>
+</form>
+<div class="card">
+    {% if pagina is none %}{{ buscar_primero() }}
+    {% elif not pagina.items %}{{ vacio() }}
+    {% else %}
+    {{ resultado_info(pagina, "pedidos") }}
+    <div class="tabla-scroll"><table class="tabla tabla-responsive">
+        <thead><tr><th>N.º</th><th>Entrega</th><th>Cliente</th><th>Dirección</th><th>Camión / chofer</th><th class="right">Total</th><th>Estado</th></tr></thead>
+        <tbody>{% for p in pagina.items %}
+        <tr class="{{ 'fila-alerta' if p.fecha_solicitada < hoy_fecha and p.estado not in ('entregado','cancelado') }}">
+            <td data-etq="N.º"><a class="fw-600 num" href="{{ url_for('pedidos.ver', pedido_id=p.id) }}">{{ p.id|nro('P') }}</a>{% if p.venta_id %}<br><small class="muted">{{ p.venta_id|nro('V') }}</small>{% endif %}</td>
+            <td data-etq="Entrega">{{ p.fecha_solicitada|fecha }}{% if p.horario %}<br><small class="muted">{{ p.horario }}</small>{% endif %}</td>
+            <td data-etq="Cliente">{{ p.cliente }}</td>
+            <td data-etq="Dirección">{% if p.tipo_entrega == 'retiro' %}<span class="muted">Retira en galpón</span>{% else %}{{ p.direccion_entrega or '—' }}{% if p.zona %}<br><small class="muted">{{ p.zona }}</small>{% endif %}{% endif %}</td>
+            <td data-etq="Camión">{{ p.patente or '—' }}<br><small class="muted">{{ p.chofer or '' }}</small></td>
+            <td data-etq="Total" class="right num">{{ p.total|moneda }}</td>
+            <td data-etq="Estado">{{ badge(p.estado, 'estado_pedido') }}</td>
+        </tr>{% endfor %}</tbody>
+    </table></div>
+    {{ paginacion(pagina) }}
+    {% endif %}
+</div>
+{% endblock %}

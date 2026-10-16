@@ -1,0 +1,87 @@
+{# Macros reutilizables de interfaz #}
+
+{% macro icon(nombre, clase="") -%}
+<svg class="ico {{ clase }}" aria-hidden="true"><use href="{{ url_for('static', filename='img/icons.svg') }}#i-{{ nombre }}"></use></svg>
+{%- endmacro %}
+
+{% macro badge(valor, grupo) -%}
+<span class="badge badge--{{ valor|color(grupo) }}">{{ valor|etiqueta(grupo) }}</span>
+{%- endmacro %}
+
+{% macro badge_activo(activo) -%}
+{% if activo %}<span class="badge badge--verde">Activo</span>{% else %}<span class="badge badge--gris">Inactivo</span>{% endif %}
+{%- endmacro %}
+
+{% macro campo(nombre, etiqueta, valor="", tipo="text", errores={}, requerido=False, col=6, ayuda=None, attrs="", placeholder="") -%}
+<div class="campo col-{{ col }}{% if errores.get(nombre) %} error{% endif %}">
+    <label for="f_{{ nombre }}">{{ etiqueta }}{% if requerido %} <span class="req">*</span>{% endif %}</label>
+    {% if tipo == "textarea" %}
+    <textarea class="input" id="f_{{ nombre }}" name="{{ nombre }}" {% if requerido %}required{% endif %} placeholder="{{ placeholder }}" {{ attrs|safe }}>{{ valor if valor is not none else "" }}</textarea>
+    {% else %}
+    <input class="input{% if tipo == 'number' %} num{% endif %}" type="{{ tipo }}" id="f_{{ nombre }}" name="{{ nombre }}" value="{{ valor if valor is not none else '' }}" placeholder="{{ placeholder }}" {% if requerido %}required{% endif %} {{ attrs|safe }}>
+    {% endif %}
+    {% if errores.get(nombre) %}<div class="campo__error">{{ errores.get(nombre) }}</div>{% elif ayuda %}<div class="campo__ayuda">{{ ayuda }}</div>{% endif %}
+</div>
+{%- endmacro %}
+
+{% macro select(nombre, etiqueta, opciones_lista, valor=None, errores={}, requerido=False, col=6, vacio="Seleccionar…", ayuda=None, attrs="") -%}
+<div class="campo col-{{ col }}{% if errores.get(nombre) %} error{% endif %}">
+    <label for="f_{{ nombre }}">{{ etiqueta }}{% if requerido %} <span class="req">*</span>{% endif %}</label>
+    <select class="input" id="f_{{ nombre }}" name="{{ nombre }}" {% if requerido %}required{% endif %} {{ attrs|safe }}>
+        {% if vacio %}<option value="">{{ vacio }}</option>{% endif %}
+        {% for v, t in opciones_lista %}
+        <option value="{{ v }}" {% if valor is not none and v|string == valor|string %}selected{% endif %}>{{ t }}</option>
+        {% endfor %}
+    </select>
+    {% if errores.get(nombre) %}<div class="campo__error">{{ errores.get(nombre) }}</div>{% elif ayuda %}<div class="campo__ayuda">{{ ayuda }}</div>{% endif %}
+</div>
+{%- endmacro %}
+
+{% macro paginacion(pagina) -%}
+{% if pagina and pagina.paginas > 1 %}
+<nav class="paginacion" aria-label="Paginación">
+    {% if pagina.tiene_anterior %}<a href="{{ pagina.url(pagina.pagina - 1) }}" aria-label="Anterior">{{ icon('chev-left') }}</a>{% else %}<span class="deshabilitado">{{ icon('chev-left') }}</span>{% endif %}
+    {% if pagina.rango()|first > 1 %}<a href="{{ pagina.url(1) }}">1</a>{% if pagina.rango()|first > 2 %}<span class="deshabilitado">…</span>{% endif %}{% endif %}
+    {% for n in pagina.rango() %}
+        {% if n == pagina.pagina %}<span class="actual">{{ n }}</span>{% else %}<a href="{{ pagina.url(n) }}">{{ n }}</a>{% endif %}
+    {% endfor %}
+    {% if pagina.rango()|last < pagina.paginas %}{% if pagina.rango()|last < pagina.paginas - 1 %}<span class="deshabilitado">…</span>{% endif %}<a href="{{ pagina.url(pagina.paginas) }}">{{ pagina.paginas }}</a>{% endif %}
+    {% if pagina.tiene_siguiente %}<a href="{{ pagina.url(pagina.pagina + 1) }}" aria-label="Siguiente">{{ icon('chev-right') }}</a>{% else %}<span class="deshabilitado">{{ icon('chev-right') }}</span>{% endif %}
+</nav>
+{% endif %}
+{%- endmacro %}
+
+{% macro resultado_info(pagina, etiqueta="registros") -%}
+<div class="resultado-info">
+    <span><strong>{{ pagina.total }}</strong> {{ etiqueta }} encontrados{% if pagina.paginas > 1 %} · página {{ pagina.pagina }} de {{ pagina.paginas }}{% endif %}</span>
+    {{ caller() if caller else "" }}
+</div>
+{%- endmacro %}
+
+{% macro buscar_primero(texto="Usá los filtros y presioná Buscar para ver resultados.") -%}
+<div class="buscar-primero">
+    {{ icon('search') }}
+    <div class="fw-600">{{ texto }}</div>
+    <div class="muted-2 text-sm">Los resultados se cargan sólo cuando los pedís, para que el sistema sea rápido aunque haya miles de registros.</div>
+</div>
+{%- endmacro %}
+
+{% macro vacio(titulo="Sin resultados", texto="No se encontraron registros con esos filtros.", icono="search") -%}
+<div class="vacio">
+    {{ icon(icono) }}
+    <div class="vacio__titulo">{{ titulo }}</div>
+    <div class="text-sm">{{ texto }}</div>
+</div>
+{%- endmacro %}
+
+{% macro form_post(url, texto, clase="btn btn--sm", confirmar=None, icono=None, extra={}) -%}
+<form method="post" action="{{ url }}" class="inline-form" style="display:inline" {% if confirmar %}data-confirmar="{{ confirmar }}"{% endif %}>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% for k, v in extra.items() %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
+    <button type="submit" class="{{ clase }}">{% if icono %}{{ icon(icono) }}{% endif %}{{ texto }}</button>
+</form>
+{%- endmacro %}
+
+{% macro csrf() -%}
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+{%- endmacro %}

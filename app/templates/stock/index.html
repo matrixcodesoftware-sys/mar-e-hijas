@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import icon, vacio %}
+{% block titulo %}Stock{% endblock %}
+{% block contenido %}
+<div class="encabezado">
+    <div><h1>Stock de áridos</h1><div class="encabezado__sub">Situación actual y movimientos del período {{ desde|fecha }} – {{ hasta|fecha }}</div></div>
+    <div class="encabezado__acciones">
+        <a class="btn" href="{{ url_for('stock.movimientos') }}">{{ icon('history') }} Movimientos</a>
+        {% if current_user.puede('stock.gestionar') %}
+        <a class="btn" href="{{ url_for('stock.ajuste') }}">{{ icon('scale') }} Ajuste / conteo</a>
+        <a class="btn btn--primario" href="{{ url_for('stock.entrada') }}">{{ icon('in') }} Entrada de material</a>
+        {% endif %}
+    </div>
+</div>
+
+<form class="filtros" method="get">
+    <div class="filtros__grid">
+        <div class="campo"><label>Período de movimientos</label>
+            <select class="input" name="periodo" data-auto-submit>
+                {% for k, t in [('hoy','Hoy'),('semana','Esta semana'),('mes','Este mes'),('mes_anterior','Mes anterior'),('anio','Este año')] %}
+                <option value="{{ k }}" {{ 'selected' if request.args.get('periodo','mes') == k }}>{{ t }}</option>{% endfor %}
+            </select></div>
+        <div class="campo"><label class="check mt-2"><input type="checkbox" name="bajo" value="1" data-auto-submit {{ 'checked' if request.args.bajo }}> Sólo bajo mínimo</label></div>
+    </div>
+</form>
+
+<div class="card">
+    {% if not filas %}
+        {{ vacio("Sin materiales", "No hay materiales que cumplan el filtro.", "box") }}
+    {% else %}
+    <div class="tabla-scroll"><table class="tabla tabla-responsive">
+        <thead><tr><th>Material</th><th class="right">Stock actual</th><th class="right">Mínimo</th><th class="right">Entradas</th><th class="right">Salidas</th><th class="right">Ajustes</th><th>Nivel</th>{% if current_user.puede('stock.gestionar') %}<th></th>{% endif %}</tr></thead>
+        <tbody>
+        {% for f in filas %}
+        {% set bajo = f.stock_actual <= f.stock_minimo %}
+        {% set pct = (f.stock_actual / (f.stock_minimo * 3) * 100) if f.stock_minimo and f.stock_minimo > 0 else 100 %}
+        <tr class="{{ 'fila-alerta' if bajo }}">
+            <td data-etq="Material"><a class="fw-600" href="{{ url_for('materiales.ver', material_id=f.id) }}">{{ f.nombre }}</a><br><small class="muted">{{ f.codigo }}</small></td>
+            <td data-etq="Stock" class="right num fw-600 {{ 'text-rojo' if bajo }}">{{ f.stock_actual|cantidad }} {{ f.abreviatura }}</td>
+            <td data-etq="Mínimo" class="right num">{{ f.stock_minimo|cantidad }}</td>
+            <td data-etq="Entradas" class="right num text-verde">{{ ('+' ~ (f.entradas|cantidad)) if f.entradas else '—' }}</td>
+            <td data-etq="Salidas" class="right num">{{ ('−' ~ (f.salidas|cantidad)) if f.salidas else '—' }}</td>
+            <td data-etq="Ajustes" class="right num">{{ f.ajustes|cantidad if f.ajustes else '—' }}</td>
+            <td data-etq="Nivel" style="min-width:120px"><div class="barra {{ 'barra--alerta' if bajo }}"><span style="width: {{ [[pct, 0]|max, 100]|min }}%"></span></div></td>
+            {% if current_user.puede('stock.gestionar') %}
+            <td class="acciones">
+                <a class="btn btn--sm btn--fantasma" title="Entrada" href="{{ url_for('stock.entrada', material_id=f.id) }}">{{ icon('in') }}</a>
+                <a class="btn btn--sm btn--fantasma" title="Ajuste" href="{{ url_for('stock.ajuste', material_id=f.id) }}">{{ icon('scale') }}</a>
+            </td>
+            {% endif %}
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table></div>
+    {% endif %}
+</div>
+{% endblock %}

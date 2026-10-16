@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import icon, campo, select, csrf %}
+{% block titulo %}{{ 'Editar material' if editando else 'Nuevo material' }}{% endblock %}
+{% block contenido %}
+<div class="miga"><a href="{{ url_for('materiales.index') }}">Materiales</a> / {{ 'Editar' if editando else 'Nuevo' }}</div>
+<div class="encabezado"><h1>{{ 'Editar ' ~ m.nombre if editando else 'Nuevo material' }}</h1></div>
+
+<form method="post" class="card" novalidate>
+    {{ csrf() }}
+    <div class="card__cuerpo">
+        <fieldset class="seccion">
+            <legend>Identificación</legend>
+            <div class="form-grid">
+                {{ campo("codigo", "Código", m.codigo, errores=errores, requerido=True, col=3, attrs='maxlength="20" style="text-transform:uppercase"') }}
+                {{ campo("nombre", "Nombre", m.nombre, errores=errores, requerido=True, col=6, placeholder="Ej.: Arena gruesa", attrs='maxlength="120"') }}
+                {{ select("categoria_id", "Tipo de material", categorias, m.categoria_id, errores=errores, requerido=True, col=3) }}
+                {{ campo("descripcion", "Descripción", m.descripcion, tipo="textarea", errores=errores, col=12, placeholder="Granulometría, origen, usos recomendados…") }}
+            </div>
+        </fieldset>
+        <fieldset class="seccion">
+            <legend>Venta y precios</legend>
+            <div class="form-grid">
+                {{ select("unidad_id", "Unidad de venta (y de stock)", unidades, m.unidad_id, errores=errores, requerido=True, col=4, ayuda="Ej.: m³ para arena, tonelada para piedra. Otras unidades se habilitan con conversiones.") }}
+                {{ campo("precio_compra", "Precio de compra por unidad", m.precio_compra, tipo="number", errores=errores, requerido=True, col=4, attrs='step="0.01" min="0"') }}
+                {{ campo("precio_venta", "Precio de venta por unidad", m.precio_venta, tipo="number", errores=errores, requerido=True, col=4, attrs='step="0.01" min="0"') }}
+            </div>
+        </fieldset>
+        <fieldset class="seccion">
+            <legend>Stock y proveedor</legend>
+            <div class="form-grid">
+                {{ campo("stock_minimo", "Stock mínimo", m.stock_minimo, tipo="number", errores=errores, col=4, attrs='step="0.001" min="0"', ayuda="Se avisa cuando el stock llega a este valor.") }}
+                {{ select("proveedor_id", "Proveedor habitual", proveedores, m.proveedor_id, errores=errores, col=5, vacio="Sin proveedor") }}
+                <div class="campo col-3" style="align-self:center"><label class="check mt-2"><input type="checkbox" name="activo" value="1" {{ 'checked' if m.activo in (1, '1', True) }}> Activo</label></div>
+            </div>
+            {% if not editando %}<div class="aviso aviso--azul mt-2">{{ icon('alert') }}<span>El stock inicial se carga desde <strong>Stock → Entrada de material</strong>, así queda registrado el movimiento con su remito y costo.</span></div>{% endif %}
+        </fieldset>
+    </div>
+    <div class="card__pie form-acciones mt-0">
+        <a class="btn" href="{{ url_for('materiales.ver', material_id=m.id) if editando else url_for('materiales.index') }}">Cancelar</a>
+        <button class="btn btn--primario">{{ icon('check') }} Guardar</button>
+    </div>
+</form>
+{% endblock %}

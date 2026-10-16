@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import icon, badge %}
+{% block titulo %}{{ c.nombre }} {{ c.apellido }}{% endblock %}
+{% block contenido %}
+<div class="miga"><a href="{{ url_for('choferes.index') }}">Choferes</a> / Ficha</div>
+<div class="encabezado">
+    <div><h1>{{ c.nombre }} {{ c.apellido }}</h1><div class="encabezado__sub">DNI {{ c.dni }} · {{ badge(c.estado, 'estado_chofer') }}</div></div>
+    <div class="encabezado__acciones">{% if current_user.puede('choferes.gestionar') %}<a class="btn btn--primario" href="{{ url_for('choferes.editar', chofer_id=c.id) }}">{{ icon('edit') }} Editar</a>{% endif %}</div>
+</div>
+{% if c.licencia_vencimiento and c.licencia_vencimiento < hoy %}
+<div class="aviso aviso--rojo mb-2">{{ icon('alert') }}<span>La licencia venció el {{ c.licencia_vencimiento|fecha }}. No debería manejar hasta renovarla.</span></div>
+{% elif c.licencia_vencimiento and c.licencia_vencimiento <= limite_alerta %}
+<div class="aviso aviso--ambar mb-2">{{ icon('alert') }}<span>La licencia vence el {{ c.licencia_vencimiento|fecha }}.</span></div>
+{% endif %}
+<div class="kpis">
+    <div class="kpi kpi--acento"><div class="kpi__etq">Entregas realizadas</div><div class="kpi__valor">{{ stats.entregadas or 0 }}</div><div class="kpi__det">de {{ stats.total }} asignadas</div></div>
+    <div class="kpi"><div class="kpi__etq">Pendientes</div><div class="kpi__valor">{{ stats.pendientes or 0 }}</div></div>
+    <div class="kpi"><div class="kpi__etq">No entregadas</div><div class="kpi__valor">{{ stats.no_entregadas or 0 }}</div></div>
+</div>
+<div class="grid grid-lateral">
+    <div class="card">
+        <div class="card__cab"><h3>Próximos 7 días</h3><a class="btn btn--sm" href="{{ url_for('entregas.index', chofer_id=c.id, buscar=1) }}">Historial</a></div>
+        {% if proximas %}<div class="tabla-scroll"><table class="tabla tabla-responsive">
+            <thead><tr><th>Fecha</th><th>Cliente</th><th>Carga</th><th>Camión</th><th>Estado</th></tr></thead>
+            <tbody>{% for e in proximas %}<tr><td data-etq="Fecha"><a href="{{ url_for('entregas.ver', entrega_id=e.id) }}">{{ e.fecha|fecha }}</a> {{ e.horario or '' }}</td><td data-etq="Cliente">{{ e.cliente }}</td><td data-etq="Carga">{{ e.carga }}</td><td data-etq="Camión">{{ e.patente or '—' }}</td><td data-etq="Estado">{{ badge(e.estado, 'estado_entrega') }}</td></tr>{% endfor %}</tbody>
+        </table></div>{% else %}<div class="card__cuerpo muted">Sin entregas programadas.</div>{% endif %}
+    </div>
+    <div class="card">
+        <div class="card__cab"><h3>Datos</h3></div>
+        <div class="card__cuerpo"><dl class="dl">
+            <dt>Teléfono</dt><dd>{% if c.telefono %}<a href="tel:{{ c.telefono }}">{{ c.telefono }}</a>{% else %}—{% endif %}</dd>
+            <dt>Licencia</dt><dd>{{ c.licencia_numero or '—' }} {{ c.licencia_categoria or '' }}</dd>
+            <dt>Vencimiento</dt><dd>{{ c.licencia_vencimiento|fecha or '—' }}</dd>
+            <dt>Vehículos</dt><dd>{{ c.vehiculos or '—' }}</dd>
+            <dt>Usuario app</dt><dd>{{ ('@' ~ c.username) if c.username else 'Sin acceso' }}</dd>
+            <dt>Observaciones</dt><dd>{{ c.observaciones or '—' }}</dd>
+        </dl></div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import icon, campo, select, csrf %}
+{% block titulo %}{{ 'Editar vehículo' if editando else 'Nuevo vehículo' }}{% endblock %}
+{% block contenido %}
+<div class="miga"><a href="{{ url_for('vehiculos.index') }}">Camiones</a> / {{ 'Editar' if editando else 'Nuevo' }}</div>
+<div class="encabezado"><h1>{{ v.patente if editando else 'Nuevo vehículo' }}</h1></div>
+<form method="post" class="card" novalidate>
+    {{ csrf() }}
+    <div class="card__cuerpo form-grid">
+        {{ campo("patente", "Patente", v.patente, errores=errores, requerido=True, col=3, placeholder="AB123CD", attrs='maxlength="10" style="text-transform:uppercase"') }}
+        {{ select("tipo_vehiculo_id", "Tipo", tipos, v.tipo_vehiculo_id, errores=errores, requerido=True, col=3) }}
+        {{ campo("marca", "Marca", v.marca, errores=errores, col=2) }}
+        {{ campo("modelo", "Modelo", v.modelo, errores=errores, col=2) }}
+        {{ campo("anio", "Año", v.anio, tipo="number", errores=errores, col=2, attrs='min="1950" max="2100"') }}
+        {{ campo("capacidad", "Capacidad de carga", v.capacidad, tipo="number", errores=errores, requerido=True, col=3, attrs='step="0.001" min="0.001"') }}
+        {{ select("unidad_capacidad_id", "Unidad de capacidad", unidades, v.unidad_capacidad_id, errores=errores, requerido=True, col=3, ayuda="Se usa para controlar la carga de cada viaje.") }}
+        {{ select("chofer_id", "Chofer asignado", choferes, v.chofer_id, errores=errores, col=3, vacio="Sin chofer fijo") }}
+        {{ select("estado", "Estado", opciones('estado_vehiculo'), v.estado, errores=errores, col=3, vacio=None) }}
+        {{ campo("observaciones", "Observaciones", v.observaciones, tipo="textarea", errores=errores, col=12, placeholder="VTV, seguro, service…") }}
+    </div>
+    <div class="card__pie form-acciones mt-0">
+        <a class="btn" href="{{ url_for('vehiculos.ver', vehiculo_id=v.id) if editando else url_for('vehiculos.index') }}">Cancelar</a>
+        <button class="btn btn--primario">{{ icon('check') }} Guardar</button>
+    </div>
+</form>
+{% endblock %}

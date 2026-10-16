@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import icon, badge, csrf %}
+{% block titulo %}Mis entregas{% endblock %}
+{% block contenido %}
+<div class="encabezado">
+    <div><h1>Mis entregas</h1><div class="encabezado__sub">{{ fecha|fecha }}{% if fecha == hoy_fecha %} · hoy{% endif %}</div></div>
+</div>
+{% if sin_chofer %}
+<div class="aviso aviso--ambar">{{ icon('alert') }}<span>Tu usuario no está vinculado a un chofer. Pedile al administrador que lo asocie en <strong>Choferes</strong>.</span></div>
+{% else %}
+<div class="chips mb-2">
+    {% for d in dias %}
+    <a class="chip {{ 'activo' if d == fecha }}" href="{{ url_for('entregas.mis_entregas', fecha=d|fecha_iso) }}">{{ 'Hoy' if d == hoy_fecha else ('Mañana' if (d - hoy_fecha).days == 1 else ('Ayer' if (d - hoy_fecha).days == -1 else d.strftime('%d/%m'))) }}</a>
+    {% endfor %}
+</div>
+
+{% for e in entregas %}
+<article class="entrega-card entrega-card--{{ e.estado }}">
+    <div class="flex between gap-1">
+        <span class="muted text-sm">{{ e.id|nro('E') }}{% if e.horario %} · {{ e.horario }}{% endif %}</span>
+        {{ badge(e.estado, 'estado_entrega') }}
+    </div>
+    <div class="entrega-card__cliente mt-1">{{ e.cliente }}</div>
+    <div class="entrega-card__dir">{{ icon('pin') }}<span>{{ e.direccion }}{% if e.localidad %}, {{ e.localidad }}{% endif %}{% if e.referencia %}<br><small class="muted">{{ e.referencia }}</small>{% endif %}</span></div>
+    <div class="entrega-card__carga">
+        {% for d in detalles[e.id] %}<div><span>{{ d.material }}</span><span>{{ d.cantidad|cantidad }} {{ d.unidad }}</span></div>{% endfor %}
+        {% if e.patente %}<div class="muted text-sm" style="font-weight:500">Camión {{ e.patente }}</div>{% endif %}
+    </div>
+    {% if e.observaciones %}<div class="aviso aviso--azul mb-1">{{ icon('alert') }}<span>{{ e.observaciones }}</span></div>{% endif %}
+    <div class="entrega-card__acciones">
+        {% set tel = e.telefono_contacto or e.cliente_whatsapp or e.cliente_telefono %}
+        {% if tel %}<a class="btn" href="tel:{{ tel }}">{{ icon('phone') }} Llamar</a>{% else %}<span></span>{% endif %}
+        <a class="btn" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query={{ (e.direccion ~ ' ' ~ (e.localidad or ''))|urlencode }}">{{ icon('pin') }} Mapa</a>
+        {% if e.estado == 'asignada' %}
+        <form method="post" action="{{ url_for('entregas.estado', entrega_id=e.id) }}" style="grid-column:1/-1">
+            {{ csrf() }}<input type="hidden" name="estado" value="en_camino"><input type="hidden" name="volver" value="mis"><input type="hidden" name="fecha_vista" value="{{ fecha|fecha_iso }}">
+            <button class="btn btn--oscuro btn--bloque btn--lg">{{ icon('truck') }} SALGO HACIA EL CLIENTE</button>
+        </form>
+        {% elif e.estado == 'en_camino' %}
+        <form method="post" action="{{ url_for('entregas.estado', entrega_id=e.id) }}" style="grid-column:1/-1">
+            {{ csrf() }}<input type="hidden" name="estado" value="entregada"><input type="hidden" name="volver" value="mis"><input type="hidden" name="fecha_vista" value="{{ fecha|fecha_iso }}">
+            <input class="input mb-1" name="recibido_por" placeholder="¿Quién recibió? (opcional)" maxlength="120">
+            <button class="btn btn--exito btn--bloque btn-entregado">{{ icon('check') }} ENTREGA REALIZADA</button>
+        </form>
+        <details style="grid-column:1/-1">
+            <summary class="muted text-sm" style="cursor:pointer;padding:.4rem 0">No se pudo entregar…</summary>
+            <form method="post" action="{{ url_for('entregas.estado', entrega_id=e.id) }}">
+                {{ csrf() }}<input type="hidden" name="estado" value="no_entregada"><input type="hidden" name="volver" value="mis"><input type="hidden" name="fecha_vista" value="{{ fecha|fecha_iso }}">
+                <input class="input mb-1" name="motivo" required maxlength="255" placeholder="Motivo">
+                <button class="btn btn--bloque">Informar no entregada</button>
+            </form>
+        </details>
+        {% elif e.estado == 'entregada' %}
+        <div class="text-verde fw-600" style="grid-column:1/-1">{{ icon('check') }} Entregada {{ e.fecha_entrega_real|hora }}{% if e.recibido_por %} · {{ e.recibido_por }}{% endif %}</div>
+        {% endif %}
+    </div>
+</article>
+{% else %}
+<div class="card"><div class="vacio">{{ icon('truck') }}<div class="vacio__titulo">Sin entregas asignadas</div><div class="text-sm">No tenés viajes para este día.</div></div></div>
+{% endfor %}
+{% endif %}
+{% endblock %}

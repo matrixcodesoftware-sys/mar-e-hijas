@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import icon, csrf %}
+{% block titulo %}Caja{% endblock %}
+{% block contenido %}
+<div class="encabezado">
+    <div><h1>Caja</h1>
+        <div class="encabezado__sub">{% if caja %}Caja #{{ caja.id }} abierta por {{ caja.usuario_apertura }} el {{ caja.fecha_apertura|fecha_hora }}{% else %}No hay una caja abierta{% endif %}</div></div>
+    <div class="encabezado__acciones">
+        {% if current_user.puede('caja.ver') %}<a class="btn" href="{{ url_for('caja.historial') }}">{{ icon('history') }} Historial de cierres</a>{% endif %}
+        {% if caja and current_user.puede('caja.operar') %}
+        <button class="btn" data-abrir-modal="modal-mov">{{ icon('plus') }} Ingreso / retiro</button>
+        <button class="btn btn--peligro" data-abrir-modal="modal-cerrar">{{ icon('lock') }} Cerrar caja</button>
+        {% endif %}
+    </div>
+</div>
+
+{% if not caja %}
+    {% if current_user.puede('caja.operar') %}
+    <form method="post" action="{{ url_for('caja.abrir') }}" class="card" style="max-width:520px">
+        {{ csrf() }}
+        <div class="card__cab"><h3>Abrir caja</h3></div>
+        <div class="card__cuerpo form-grid">
+            <div class="campo col-12"><label>Monto inicial en efectivo <span class="req">*</span></label>
+                <input class="input num" type="number" name="monto_inicial" step="0.01" min="0" required autofocus value="0"></div>
+            <div class="campo col-12"><label>Observaciones</label><input class="input" name="observaciones" maxlength="255"></div>
+        </div>
+        <div class="card__pie right"><button class="btn btn--primario">{{ icon('cash') }} Abrir caja</button></div>
+    </form>
+    {% else %}
+    <div class="aviso aviso--ambar">{{ icon('alert') }}<span>No hay caja abierta.</span></div>
+    {% endif %}
+{% else %}
+    {% include "caja/_resumen.html" %}
+    <div class="card">
+        <div class="card__cab"><h3>Movimientos de la caja</h3></div>
+        {% include "caja/_movimientos.html" %}
+    </div>
+
+    {% if current_user.puede('caja.operar') %}
+    <dialog class="modal" id="modal-mov">
+        <form method="post" action="{{ url_for('caja.movimiento') }}">
+            {{ csrf() }}
+            <div class="modal__cab"><h3>Movimiento manual</h3><button type="button" class="btn btn--fantasma btn-icono" data-cerrar-modal>{{ icon('x') }}</button></div>
+            <div class="modal__cuerpo form-grid">
+                <div class="campo col-12"><div class="segmentado">
+                    <input type="radio" id="mt_ing" name="tipo" value="ingreso" checked><label for="mt_ing">Ingreso</label>
+                    <input type="radio" id="mt_ret" name="tipo" value="retiro"><label for="mt_ret">Retiro</label>
+                    <input type="radio" id="mt_aj" name="tipo" value="ajuste"><label for="mt_aj">Ajuste</label></div></div>
+                <div class="campo col-6"><label>Sentido (sólo ajuste)</label><select class="input" name="sentido"><option value="ingreso">Ingreso</option><option value="egreso">Egreso</option></select></div>
+                <div class="campo col-6"><label>Método</label><select class="input" name="metodo_pago_id" required>{% for mp in metodos %}<option value="{{ mp.id }}">{{ mp.nombre }}</option>{% endfor %}</select></div>
+                <div class="campo col-6"><label>Monto <span class="req">*</span></label><input class="input num" type="number" name="monto" step="0.01" min="0.01" required></div>
+                <div class="campo col-12"><label>Concepto <span class="req">*</span></label><input class="input" name="concepto" maxlength="200" required placeholder="Ej.: retiro del dueño, cambio, depósito bancario…"></div>
+                <div class="col-12 text-sm muted">Para combustible, reparaciones, sueldos, etc. usá <a href="{{ url_for('gastos.nuevo') }}">Gastos</a> (queda clasificado).</div>
+            </div>
+            <div class="modal__pie"><button type="button" class="btn" data-cerrar-modal>Cancelar</button><button class="btn btn--primario">{{ icon('check') }} Registrar</button></div>
+        </form>
+    </dialog>
+    <dialog class="modal" id="modal-cerrar">
+        <form method="post" action="{{ url_for('caja.cerrar') }}" data-confirmar="Se cerrará la caja y se guardará el arqueo. ¿Continuar?">
+            {{ csrf() }}
+            <div class="modal__cab"><h3>Cerrar caja #{{ caja.id }}</h3><button type="button" class="btn btn--fantasma btn-icono" data-cerrar-modal>{{ icon('x') }}</button></div>
+            <div class="modal__cuerpo form-grid">
+                <div class="col-12 totales" style="width:100%">
+                    <div><span>Saldo inicial</span><span class="num">{{ r.saldo_inicial|moneda }}</span></div>
+                    <div><span>+ Ingresos en efectivo</span><span class="num">{{ r.efectivo_ing|moneda }}</span></div>
+                    <div><span>− Egresos en efectivo</span><span class="num">{{ r.efectivo_egr|moneda }}</span></div>
+                    <div class="total"><span>Efectivo esperado</span><span class="num">{{ r.saldo_esperado|moneda }}</span></div>
+                </div>
+                <div class="campo col-12"><label>Efectivo contado (saldo declarado) <span class="req">*</span></label>
+                    <input class="input num" type="number" name="saldo_declarado" step="0.01" min="0" required></div>
+                <div class="campo col-12"><label>Observaciones</label><input class="input" name="observaciones" maxlength="255"></div>
+            </div>
+            <div class="modal__pie"><button type="button" class="btn" data-cerrar-modal>Cancelar</button><button class="btn btn--peligro">{{ icon('lock') }} Cerrar caja</button></div>
+        </form>
+    </dialog>
+    {% endif %}
+{% endif %}
+{% endblock %}

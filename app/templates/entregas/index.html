@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import icon, badge, paginacion, resultado_info, buscar_primero, vacio %}
+{% block titulo %}Entregas{% endblock %}
+{% block contenido %}
+<div class="encabezado">
+    <div><h1>Logística de entregas</h1><div class="encabezado__sub">Cada entrega es un viaje de un camión</div></div>
+    <div class="encabezado__acciones no-imprimir"><button class="btn" data-imprimir>{{ icon('print') }} Imprimir hoja de ruta</button></div>
+</div>
+<form class="filtros" method="get">
+    <input type="hidden" name="buscar" value="1">
+    <div class="filtros__grid">
+        <div class="campo"><label>Estado</label><select class="input" name="estado"><option value="">Todos</option>
+            {% for k, t in opciones('estado_entrega') %}<option value="{{ k }}" {{ 'selected' if request.args.estado == k }}>{{ t }}</option>{% endfor %}</select></div>
+        <div class="campo"><label>Chofer</label><select class="input" name="chofer_id"><option value="">Todos</option>
+            {% for id, n in choferes %}<option value="{{ id }}" {{ 'selected' if request.args.chofer_id == id|string }}>{{ n }}</option>{% endfor %}</select></div>
+        <div class="campo"><label>Camión</label><select class="input" name="vehiculo_id"><option value="">Todos</option>
+            {% for id, n in vehiculos %}<option value="{{ id }}" {{ 'selected' if request.args.vehiculo_id == id|string }}>{{ n }}</option>{% endfor %}</select></div>
+        <div class="campo"><label>Desde</label><input class="input" type="date" name="desde" value="{{ request.args.desde or '' }}"></div>
+        <div class="campo"><label>Hasta</label><input class="input" type="date" name="hasta" value="{{ request.args.hasta or '' }}"></div>
+        <div class="filtros__acciones"><button class="btn btn--oscuro">{{ icon('search') }} Buscar</button></div>
+    </div>
+    <div class="chips">
+        {% for k, t in [('hoy','Hoy'),('manana','Mañana'),('pendientes','En curso'),('sin_asignar','Sin asignar')] %}
+        <a class="chip {{ 'activo' if request.args.rapido == k }}" href="{{ url_for('entregas.index', rapido=k) }}">{{ t }}</a>{% endfor %}
+    </div>
+</form>
+<div class="card">
+    {% if pagina is none %}{{ buscar_primero() }}
+    {% elif not pagina.items %}{{ vacio("Sin entregas", "No hay entregas con esos filtros.", "truck") }}
+    {% else %}
+    {{ resultado_info(pagina, "entregas") }}
+    <div class="tabla-scroll"><table class="tabla tabla-responsive">
+        <thead><tr><th>N.º</th><th>Fecha</th><th>Cliente / dirección</th><th>Carga</th><th>Camión</th><th>Chofer</th><th>Estado</th></tr></thead>
+        <tbody>{% for e in pagina.items %}
+        <tr>
+            <td data-etq="N.º"><a class="fw-600 num" href="{{ url_for('entregas.ver', entrega_id=e.id) }}">{{ e.id|nro('E') }}</a>
+                {% if e.pedido_id %}<br><small class="muted">{{ e.pedido_id|nro('P') }}</small>{% elif e.venta_id %}<br><small class="muted">{{ e.venta_id|nro('V') }}</small>{% endif %}</td>
+            <td data-etq="Fecha">{{ e.fecha|fecha }}{% if e.horario %}<br><small class="muted">{{ e.horario }}</small>{% endif %}</td>
+            <td data-etq="Cliente"><span class="fw-600">{{ e.cliente }}</span><br><small class="muted">{{ e.direccion }}{% if e.localidad %}, {{ e.localidad }}{% endif %}</small></td>
+            <td data-etq="Carga">{{ e.carga }}</td>
+            <td data-etq="Camión">{{ e.patente or '—' }}</td>
+            <td data-etq="Chofer">{{ e.chofer or '—' }}</td>
+            <td data-etq="Estado">{{ badge(e.estado, 'estado_entrega') }}</td>
+        </tr>{% endfor %}</tbody>
+    </table></div>
+    {{ paginacion(pagina) }}
+    {% endif %}
+</div>
+{% endblock %}

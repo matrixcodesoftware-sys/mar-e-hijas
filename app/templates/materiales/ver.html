@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import icon, badge, badge_activo, csrf, form_post %}
+{% block titulo %}{{ m.nombre }}{% endblock %}
+{% block contenido %}
+<div class="miga"><a href="{{ url_for('materiales.index') }}">Materiales</a> / {{ m.codigo }}</div>
+<div class="encabezado">
+    <div><h1>{{ m.nombre }}</h1><div class="encabezado__sub">{{ m.categoria }} · {{ m.codigo }} · {{ badge_activo(m.activo) }}</div></div>
+    <div class="encabezado__acciones">
+        {% if current_user.puede('stock.gestionar') %}<a class="btn" href="{{ url_for('stock.entrada', material_id=m.id) }}">{{ icon('in') }} Registrar entrada</a>{% endif %}
+        {% if current_user.puede('materiales.gestionar') %}<a class="btn btn--primario" href="{{ url_for('materiales.editar', material_id=m.id) }}">{{ icon('edit') }} Editar</a>{% endif %}
+    </div>
+</div>
+
+<div class="kpis">
+    <div class="kpi kpi--acento {{ 'kpi--alerta' if m.stock_actual <= m.stock_minimo }}"><div class="kpi__etq">Stock actual</div><div class="kpi__valor">{{ m.stock_actual|cantidad }} {{ m.unidad_abrev }}</div><div class="kpi__det">Mínimo {{ m.stock_minimo|cantidad }} {{ m.unidad_abrev }}</div></div>
+    <div class="kpi"><div class="kpi__etq">Precio de venta</div><div class="kpi__valor">{{ m.precio_venta|moneda }}</div><div class="kpi__det">por {{ m.unidad_nombre|lower }}</div></div>
+    {% if current_user.puede('materiales.gestionar') %}
+    <div class="kpi"><div class="kpi__etq">Precio de compra</div><div class="kpi__valor">{{ m.precio_compra|moneda }}</div>
+        <div class="kpi__det">Margen {% if m.precio_venta %}{{ ((m.precio_venta - m.precio_compra) / m.precio_venta * 100)|numero(1) }} %{% else %}—{% endif %}</div></div>
+    {% endif %}
+</div>
+
+<div class="grid grid-2">
+    <div class="card">
+        <div class="card__cab"><h3>Precios por unidad de venta</h3></div>
+        <div class="tabla-scroll"><table class="tabla">
+            <thead><tr><th>Unidad</th><th class="right">Equivale a</th><th class="right">Precio sugerido</th></tr></thead>
+            <tbody>
+            {% for u in unidades %}
+            <tr><td>{{ u.nombre }} {% if u.es_base %}<span class="badge badge--ambar">stock</span>{% endif %}</td>
+                <td class="right num">{{ u.factor|cantidad }} {{ m.unidad_abrev }}</td>
+                <td class="right num fw-600">{{ u.precio|moneda }}</td></tr>
+            {% endfor %}
+            </tbody>
+        </table></div>
+        <div class="card__pie text-sm muted">Las unidades disponibles surgen de las conversiones generales y las propias de este material.</div>
+    </div>
+
+    <div class="card" id="conversiones">
+        <div class="card__cab"><h3>Conversiones propias del material</h3></div>
+        <div class="card__cuerpo">
+            {% if conversiones %}
+            <ul class="lista-simple">
+                {% for c in conversiones %}
+                <li><span>1 {{ c.origen_nombre }} = <strong>{{ c.factor|cantidad }}</strong> {{ c.destino_nombre }}{% if c.observaciones %}<br><small class="muted">{{ c.observaciones }}</small>{% endif %}</span>
+                    {% if current_user.puede('materiales.gestionar') or current_user.puede('parametros.gestionar') %}
+                    {{ form_post(url_for('materiales.eliminar_conversion', material_id=m.id, conv_id=c.id), '', 'btn btn--sm btn--fantasma', confirmar='¿Eliminar esta conversión?', icono='trash') }}
+                    {% endif %}</li>
+                {% endfor %}
+            </ul>
+            {% else %}<p class="muted mt-0">Sin conversiones propias. Ej.: para vender arena por tonelada, cargá 1 Tonelada = 0,625 m³.</p>{% endif %}
+            {% if current_user.puede('materiales.gestionar') or current_user.puede('parametros.gestionar') %}
+            <form method="post" action="{{ url_for('materiales.agregar_conversion', material_id=m.id) }}" class="form-grid mt-2">
+                {{ csrf() }}
+                <div class="campo col-4"><label>1 unidad de</label><select class="input" name="unidad_origen_id" required><option value="">…</option>{% for id, n in unidades_opciones %}<option value="{{ id }}">{{ n }}</option>{% endfor %}</select></div>
+                <div class="campo col-3"><label>equivale a</label><input class="input num" type="number" name="factor" step="0.000001" min="0.000001" required></div>
+                <div class="campo col-5"><label>de</label><select class="input" name="unidad_destino_id" required><option value="">…</option>{% for id, n in unidades_opciones %}<option value="{{ id }}" {{ 'selected' if id == m.unidad_id }}>{{ n }}</option>{% endfor %}</select></div>
+                <div class="campo col-9"><input class="input" name="observaciones" placeholder="Observación (opcional)" maxlength="255"></div>
+                <div class="col-3"><button class="btn btn--oscuro btn--bloque">{{ icon('plus') }} Agregar</button></div>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="grid grid-2 mt-2">
+    <div class="card">
+        <div class="card__cab"><h3>Datos</h3></div>
+        <div class="card__cuerpo">
+            <dl class="dl">
+                <dt>Unidad de venta</dt><dd>{{ m.unidad_nombre }}</dd>
+                <dt>Proveedor</dt><dd>{{ m.proveedor or '—' }}</dd>
+                <dt>Descripción</dt><dd>{{ m.descripcion or '—' }}</dd>
+                <dt>Actualizado</dt><dd>{{ (m.actualizado_en or m.creado_en)|fecha_hora }}</dd>
+            </dl>
+        </div>
+    </div>
+    {% if current_user.puede('stock.ver') %}
+    <div class="card">
+        <div class="card__cab"><h3>Últimos movimientos</h3><a class="btn btn--sm" href="{{ url_for('stock.movimientos', material_id=m.id, buscar=1) }}">Ver todos</a></div>
+        {% if movimientos %}
+        <div class="tabla-scroll"><table class="tabla tabla--compacta">
+            <thead><tr><th>Fecha</th><th>Tipo</th><th class="right">Cantidad</th><th class="right">Stock</th></tr></thead>
+            <tbody>{% for mv in movimientos %}
+            <tr><td>{{ mv.fecha|fecha_hora }}</td><td>{{ badge(mv.tipo, 'tipo_mov_stock') }}</td>
+                <td class="right num {{ 'text-verde' if mv.cantidad > 0 else 'text-rojo' }}">{{ '+' if mv.cantidad > 0 }}{{ mv.cantidad|cantidad }}</td>
+                <td class="right num">{{ mv.stock_resultante|cantidad }}</td></tr>
+            {% endfor %}</tbody>
+        </table></div>
+        {% else %}<div class="card__cuerpo muted">Sin movimientos.</div>{% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

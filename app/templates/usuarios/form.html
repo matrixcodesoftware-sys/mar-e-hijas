@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import icon, campo, select, csrf %}
+{% block titulo %}{{ 'Editar usuario' if editando else 'Nuevo usuario' }}{% endblock %}
+{% block contenido %}
+<div class="miga"><a href="{{ url_for('usuarios.index') }}">Usuarios</a> / {{ 'Editar' if editando else 'Nuevo' }}</div>
+<div class="encabezado"><h1>{{ ('@' ~ u.username) if editando else 'Nuevo usuario' }}</h1></div>
+<form method="post" class="card" style="max-width:860px" novalidate autocomplete="off">
+    {{ csrf() }}
+    <div class="card__cuerpo form-grid">
+        {{ campo("nombre", "Nombre", u.nombre, errores=errores, requerido=True, col=6) }}
+        {{ campo("apellido", "Apellido", u.apellido, errores=errores, requerido=True, col=6) }}
+        {{ campo("username", "Usuario (para ingresar)", u.username, errores=errores, requerido=True, col=6, attrs='autocapitalize="none" maxlength="40"') }}
+        {{ select("rol_id", "Rol", roles, u.rol_id, errores=errores, requerido=True, col=6) }}
+        {{ campo("email", "Email", u.email, tipo="email", errores=errores, col=6) }}
+        {{ campo("telefono", "Teléfono", u.telefono, errores=errores, col=6) }}
+        {{ campo("password", "Contraseña" if not editando else "Nueva contraseña (dejar vacío para no cambiar)", "", tipo="password", errores=errores, requerido=not editando, col=6, attrs='autocomplete="new-password" minlength="8"') }}
+        {{ campo("password2", "Repetir contraseña", "", tipo="password", errores=errores, requerido=not editando, col=6, attrs='autocomplete="new-password"') }}
+        <div class="campo col-12{{ ' error' if errores.activo }}"><label class="check"><input type="checkbox" name="activo" value="1" {{ 'checked' if u.activo in (1, '1', True) }}> Usuario activo</label>
+            {% if errores.activo %}<div class="campo__error">{{ errores.activo }}</div>{% endif %}</div>
+        <div class="col-12 aviso aviso--azul">{{ icon('alert') }}<span>Para choferes: creá el usuario con rol <strong>Repartidor / Chofer</strong> y después vinculalo en <strong>Choferes</strong>.</span></div>
+    </div>
+    <div class="card__pie form-acciones mt-0">
+        <a class="btn" href="{{ url_for('usuarios.index') }}">Cancelar</a>
+        <button class="btn btn--primario">{{ icon('check') }} Guardar</button>
+    </div>
+</form>
+{% endblock %}

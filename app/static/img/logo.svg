@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="MAR E HIJAS">
+  <rect width="64" height="64" rx="12" fill="#1f262b"/>
+  <path d="M6 50 L22 26 L38 50 Z" fill="#8a6a3d"/>
+  <path d="M24 50 L40 18 L58 50 Z" fill="#d49a3a"/>
+  <path d="M40 18 L46 30 L40 27 L35 28 Z" fill="#f0c77b"/>
+  <path d="M16 50 L22 41 L28 50 Z" fill="#6d5431"/>
+  <circle cx="30" cy="46" r="1.6" fill="#1f262b" opacity=".35"/>
+  <circle cx="44" cy="44" r="1.4" fill="#1f262b" opacity=".3"/>
+  <circle cx="50" cy="47" r="1.1" fill="#1f262b" opacity=".3"/>
+  <circle cx="38" cy="38" r="1.2" fill="#1f262b" opacity=".25"/>
+  <rect x="6" y="50" width="52" height="3" rx="1.5" fill="#f4f1ea"/>
+</svg>

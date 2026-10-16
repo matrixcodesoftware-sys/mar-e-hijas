@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import icon, csrf %}
+{% block titulo %}Roles y permisos{% endblock %}
+{% block contenido %}
+<div class="miga"><a href="{{ url_for('usuarios.index') }}">Usuarios</a> / Roles y permisos</div>
+<div class="encabezado"><div><h1>Roles y permisos</h1><div class="encabezado__sub">Definí qué puede hacer cada rol. Los cambios aplican en el próximo clic de cada usuario.</div></div></div>
+<nav class="tabs">
+    {% for r in roles %}<a class="{{ 'activo' if r.id == rol_activo }}" href="{{ url_for('usuarios.roles', rol=r.id) }}">{{ r.nombre }}</a>{% endfor %}
+</nav>
+{% for r in roles if r.id == rol_activo %}
+<form method="post" class="card">
+    {{ csrf() }}<input type="hidden" name="rol_id" value="{{ r.id }}">
+    <div class="card__cab"><div><h3>{{ r.nombre }}</h3><div class="text-sm muted">{{ r.descripcion }}</div></div>
+        {% if r.codigo != 'duenio' %}<button class="btn btn--primario">{{ icon('check') }} Guardar permisos</button>{% endif %}</div>
+    <div class="card__cuerpo">
+        {% if r.codigo == 'duenio' %}<div class="aviso aviso--ambar mb-2">{{ icon('lock') }}<span>El Dueño tiene acceso completo y no puede restringirse.</span></div>{% endif %}
+        <div class="grid grid-3">
+        {% for modulo, perms in modulos.items() %}
+            <fieldset class="seccion">
+                <legend>{{ modulo|capitalize }}</legend>
+                {% for p in perms %}
+                <label class="check mb-1" style="display:flex"><input type="checkbox" name="permisos" value="{{ p.id }}" {{ 'checked' if p.id in asignados[r.id] or r.codigo == 'duenio' }} {{ 'disabled' if r.codigo == 'duenio' }}> <span>{{ p.descripcion }}<br><small class="muted">{{ p.codigo }}</small></span></label>
+                {% endfor %}
+            </fieldset>
+        {% endfor %}
+        </div>
+    </div>
+</form>
+{% endfor %}
+{% endblock %}
